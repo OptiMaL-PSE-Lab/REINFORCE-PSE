@@ -4,6 +4,7 @@ np.random.seed(seed=666)
 
 #secondary utilities
 import os
+from os.path import join
 import sys
 import copy
 import model_integrator
@@ -255,6 +256,9 @@ plt.show()
                  MAIN LOOP start
 ---------------------------------------------------
 '''
+# create folders to save pictures and model
+os.makedirs('figures', exist_ok=True)
+os.makedirs('serializations', exist_ok=True)
 for i_episode in range(episode_n):
     ''' --- COMPUTE EPISODE FOR LATER REINFORCEMENT LEARNING --- '''
     '''diminish std to focus more on explotation'''
@@ -307,9 +311,9 @@ for i_episode in range(episode_n):
         plt.plot(U_u_l)
         plt.ylabel('u',rotation= 360,fontsize=15)
         plt.xlabel('time',fontsize=15)
-        plt.savefig('FiguresBatchReactor\Profile_iter_a_'+str(i_episode)+'_REINFORCE_v3.png')
+        plt.savefig(join('figures','profile_iter_a_'+str(i_episode)+'_REINFORCE_v3.png'))
         plt.close()
-        torch.save(policy, 'ANNs\ANN_Prerain_10-6_v1.pt')
+        torch.save(policy, join('serializations','ann_pretrain_10-6.pt'))
 '''
 ---------------------------------------------------
                  MAIN LOOP end
