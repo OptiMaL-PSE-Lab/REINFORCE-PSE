@@ -19,7 +19,7 @@ def model_integration(params, initial_state, controls, dtime):
         # y2_s = initial_state[1] # not directly involved in ode system
 
         dev_y1 = -(U_u+U_u**2*a_p)*y1_s
-        dev_y2 = U_u*y1_s*b_p 
+        dev_y2 = U_u*y1_s*b_p
         return np.array([dev_y1, dev_y2], dtype='float64')
 
     ode = scp.ode(ode_system)

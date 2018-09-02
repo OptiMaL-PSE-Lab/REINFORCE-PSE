@@ -49,8 +49,6 @@ class PolicyNetwork(nn.Module):
 ----------------------------------------------------
 Function to pre-train policy -start
 '''
-#Pre-Trainning
-    # pretraining(policy, inputs_PT, runs_PT,pert_size, initial_state_I=np.array([1,0])) 
 def pretraining(policy_PT, inputs, runs_PT, pert_size, initial_state_I=np.array([1,0])):
     ''' define lists to be filled '''
     y1_PT = [[None for i_PT in range(t_steps)]  for i_PT in range(runs_PT)]
@@ -82,8 +80,7 @@ def pretraining(policy_PT, inputs, runs_PT, pert_size, initial_state_I=np.array(
     criterion = nn.MSELoss()
     optimizer = optim.Adam(policy.parameters(), lr=1e-2)
 #    optimizer = torch.optim.LBFGS(policy_PT.parameters(), history_size=10000)
-#    def closure():
-#        return PT_loss
+
     epoch_n = 400
     # start training
     for PT_epoch in range(epoch_n):
@@ -96,7 +93,6 @@ def pretraining(policy_PT, inputs, runs_PT, pert_size, initial_state_I=np.array(
         sys.stdout.write("predicted string: ")
         print(", epoch: %d, loss: %1.3f" % (PT_epoch + 1, PT_loss.data[0]))
         PT_loss.backward()
-#        optimizer.step(closure)
         optimizer.step()
     return y1_PT[0], y2_PT[0], t_PT[0], U_u_PT[0]
 

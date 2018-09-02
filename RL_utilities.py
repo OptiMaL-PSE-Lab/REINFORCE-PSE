@@ -5,7 +5,6 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torch.autograd as autograd
 from torch.autograd import Variable
-import torch.nn.functional as F
 from torch.distributions import Categorical
 import torch.nn.utils as utils
 # other imports
@@ -13,7 +12,6 @@ import copy
 import sys
 # model integration imports
 import numpy as np
-import scipy.integrate as scp
 import Model_Integrator
 from Model_Integrator import model_integration
 
@@ -213,7 +211,7 @@ def compute_run(policy_CR, params_CR, dtime_CR, tf_CR, states_n_CR, control_n_CR
             for control_k in range(control_n_CR):
                 #controls_CR[step_j][control_k] = action[control_k] # if contrl vector
                 controls_CR[step_j][control_k] = action.item() # if contrl vector
-            controls_CR[step_j] = tuple(controls_CR[step_j])  
+            controls_CR[step_j] = tuple(controls_CR[step_j])
 
     # getting rewards and finilizing
     reward_CR = final_state[1] # manual assigment of reward !!

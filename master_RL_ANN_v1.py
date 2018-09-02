@@ -1,11 +1,6 @@
-# import plotting
-from pylab import *
 import matplotlib.pyplot as plt
-# model integration imports
 import numpy as np
-import scipy.integrate as scp
-import Model_Integrator
-from Model_Integrator import model_integration
+
 # ANN RL imports
 import torch
 import torch.nn as nn
@@ -15,7 +10,9 @@ import torch.autograd as autograd
 from torch.autograd import Variable
 from torch.distributions import Categorical
 import torch.nn.utils as utils
-# from RL utilities
+
+import Model_Integrator
+from Model_Integrator import model_integration
 from RL_utilities import PolicyNetwork
 from RL_utilities import pretraining
 from RL_utilities import compute_run
