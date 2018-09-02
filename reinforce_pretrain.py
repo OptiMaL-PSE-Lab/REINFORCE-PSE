@@ -6,7 +6,7 @@ np.random.seed(seed=666)
 import os
 import sys
 import copy
-import Model_Integrator
+import model_integrator
 
 import torch
 import torch.nn as nn
@@ -61,7 +61,7 @@ def pretraining(policy_PT, inputs, runs_PT, pert_size, initial_state_I=np.array(
             controls=inputs[step_j]*(1+np.random.uniform(-pert_size,pert_size))
             action = controls
             contrl={'U_u':np.float64(action)}
-            final_state = Model_Integrator.model_integration(params,initial_state_I,contrl,dtime)
+            final_state = model_integrator.model_integration(params,initial_state_I,contrl,dtime)
             initial_state_I=copy.deepcopy(final_state)
             tj=tj+dtime # calculate next time
             y1_PT[i_episode][step_j] = final_state[0]
@@ -183,7 +183,7 @@ def compute_run(policy_CR, initial_state_CR, plot_CR=False, t_steps_CR=t_steps):
             action, log_prob_a, entropy  = select_action(controls[0], std_sqr, train=True)
         contrl={'U_u':np.float64(action)}
         ''' integrate the system for dtime=0.1 '''
-        final_state = Model_Integrator.model_integration(params,initial_state_I,contrl,dtime)
+        final_state = model_integrator.model_integration(params,initial_state_I,contrl,dtime)
         ''' calculate probability of action taken '''
         if not plot_CR:
             log_probs_l[epi_n][step_j]=log_prob_a # global var

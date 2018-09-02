@@ -12,8 +12,8 @@ import copy
 import sys
 # model integration imports
 import numpy as np
-import Model_Integrator
-from Model_Integrator import model_integration
+import model_integrator
+from model_integrator import model_integration
 
 def normal_np(act, mu, sigma_sq):
     a = np.exp(-(act-mu)**2/(2.*sigma_sq**2))
@@ -189,7 +189,7 @@ def compute_run(policy_CR, params_CR, dtime_CR, tf_CR, states_n_CR, control_n_CR
         #print('controls = ',controls)
 
         # integrate the system for dtime=0.1
-        final_state = Model_Integrator.model_integration(params_CR,initial_state_I,contrl,dtime_CR)
+        final_state = model_integrator.model_integration(params_CR,initial_state_I,contrl,dtime_CR)
 
         # calculate probability of action taken
         if not plot_CR:
