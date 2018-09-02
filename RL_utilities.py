@@ -11,19 +11,18 @@ import torch.nn.utils as utils
 # other imports
 import copy
 import sys
-import math
 # model integration imports
 import numpy as np
 import scipy.integrate as scp
 import Model_Integrator
-from Model_Integrator import ModelIntegration
+from Model_Integrator import model_integration
 
 def normal_np(act, mu, sigma_sq):
     a = np.exp(-(act-mu)**2/(2.*sigma_sq**2))
     b = 1./np.sqrt((2.*sigma_sq**2*np.pi))
     return a*b
 
-pi = Variable(torch.FloatTensor([math.pi]))
+pi = Variable(torch.FloatTensor([np.pi]))
 def normal_torch(act, mu, sigma_sq):
     a = (-1*(Variable(act)-mu).pow(2)/(2*sigma_sq**2)).exp()
     b = 1/np.sqrt((2*sigma_sq**2*pi))
@@ -67,7 +66,7 @@ class PolicyNetwork(nn.Module):
         mu = F.relu6(self.linear3_m(x))
         return mu
 
-def PreTraining(policy_PT, params, dtime, tf, states_n, control_inputs, runs_PT,
+def pretraining(policy_PT, params, dtime, tf, states_n, control_inputs, runs_PT,
  pert_size, initial_state_I=np.array([1,0])):# manually change control !!
 
     # define lists to compile states
@@ -96,7 +95,7 @@ def PreTraining(policy_PT, params, dtime, tf, states_n, control_inputs, runs_PT,
 
             action = controls[0][step_j]
             contrl={'U_u':float(action)} # !! manually, [0] (first and only control)
-            final_state = ModelIntegration(params,initial_state_I,contrl,dtime)
+            final_state = model_integration(params,initial_state_I,contrl,dtime)
             initial_state_I=copy.deepcopy(final_state)
             tj=tj+dtime # calculate next time
             # compile states
@@ -159,7 +158,7 @@ def PreTraining(policy_PT, params, dtime, tf, states_n, control_inputs, runs_PT,
     ''' # --------- Trainning data -end --------- # '''
     return policy_PT
 
-def ComputeRun(policy_CR, params_CR, dtime_CR, tf_CR, states_n_CR, control_n_CR,
+def compute_run(policy_CR, params_CR, dtime_CR, tf_CR, states_n_CR, control_n_CR,
  t_steps_CR, runs_CR, std_sqr, initial_state_CR=np.array([1,0]), plot_CR=False):
     if t_steps_CR != tf_CR/dtime_CR:
         print('t_steps and tf/dtime do not match t_step = ',t_steps_CR,' tf/dtime = ',tf_CR/dtime_CR)
@@ -192,7 +191,7 @@ def ComputeRun(policy_CR, params_CR, dtime_CR, tf_CR, states_n_CR, control_n_CR,
         #print('controls = ',controls)
 
         # integrate the system for dtime=0.1
-        final_state = Model_Integrator.ModelIntegration(params_CR,initial_state_I,contrl,dtime_CR)
+        final_state = Model_Integrator.model_integration(params_CR,initial_state_I,contrl,dtime_CR)
 
         # calculate probability of action taken
         if not plot_CR:
@@ -224,25 +223,3 @@ def ComputeRun(policy_CR, params_CR, dtime_CR, tf_CR, states_n_CR, control_n_CR,
         return reward_CR, states_CR, t_CR, controls_CR
     if not plot_CR:
         return reward_CR, log_probs_l
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#

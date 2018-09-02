@@ -1,26 +1,12 @@
-import pylab
 import numpy as np
-import scipy.integrate as scp
-from pylab import *
 import matplotlib.pyplot as plt
 np.random.seed(seed=666)
-'''
-Here we include multiple episodes per update
-We include a *5 on control output to scale it
 
-'''
 #secondary utilities
-import csv
-#import itertools
 import os
 import sys
 import copy
 import Model_Integrator
-# --- packages for ANNs --- #
-import math
-import random
-from collections import namedtuple
-from itertools import count
 
 import torch
 import torch.nn as nn
@@ -31,11 +17,10 @@ from torch.autograd import Variable
 import torch.nn.functional as F
 from torch.distributions import Categorical
 import torch.nn.utils as utils
-# defino some torch stuff
-torch.manual_seed(666)
-pi = Variable(torch.FloatTensor([math.pi]))
 
-#import torchvision.transforms as T
+torch.manual_seed(666)
+pi = Variable(torch.FloatTensor([np.pi]))
+
 #---------- Policy network (start) ----------#
 '''
 Policy-network
@@ -65,8 +50,8 @@ class PolicyNetwork(nn.Module):
 Function to pre-train policy -start
 '''
 #Pre-Trainning
-    # PreTraining(policy, inputs_PT, runs_PT,pert_size, initial_state_I=np.array([1,0])) 
-def PreTraining(policy_PT, inputs, runs_PT, pert_size, initial_state_I=np.array([1,0])):
+    # pretraining(policy, inputs_PT, runs_PT,pert_size, initial_state_I=np.array([1,0])) 
+def pretraining(policy_PT, inputs, runs_PT, pert_size, initial_state_I=np.array([1,0])):
     ''' define lists to be filled '''
     y1_PT = [[None for i_PT in range(t_steps)]  for i_PT in range(runs_PT)]
     y2_PT = [[None for i_PT in range(t_steps)]  for i_PT in range(runs_PT)]
@@ -77,14 +62,14 @@ def PreTraining(policy_PT, inputs, runs_PT, pert_size, initial_state_I=np.array(
         for step_j in range(t_steps):
             controls=inputs[step_j]*(1+np.random.uniform(-pert_size,pert_size))
             action = controls
-            contrl={'U_u':float64(action)}
-            final_state = Model_Integrator.ModelIntegration(params,initial_state_I,contrl,dtime)
+            contrl={'U_u':np.float64(action)}
+            final_state = Model_Integrator.model_integration(params,initial_state_I,contrl,dtime)
             initial_state_I=copy.deepcopy(final_state)
             tj=tj+dtime # calculate next time
             y1_PT[i_episode][step_j] = final_state[0]
             y2_PT[i_episode][step_j] = final_state[1]
             t_PT[i_episode][step_j] = tf-tj
-            U_u_PT[i_episode][step_j] = float64(action)
+            U_u_PT[i_episode][step_j] = np.float64(action)
     # setting data for trainning
     y_data = [[(U_u_PT[j][i]) for i in range(0,len(U_u_PT[j]))] for j in range(0,len(U_u_PT))]
     x_data = [[(y1_PT[j][i],y2_PT[j][i],t_PT[j][i])
@@ -151,7 +136,7 @@ def select_action(control_mean, control_sigma, train=True):
 problem parameters
 '''
 #memory = ReplayMemory(10000)
-episode_n = 5000000 # define number of episodes !!!
+episode_n = 100000 # define number of episodes !!!
 record_n = 10000 # !!!
 std_sqr_red = (1,record_n) # !!!
 '''
@@ -180,7 +165,7 @@ epi_n=-1 # because I sum one
 ----------------------------------------------------
 Function to compute a single run given a policy -start
 '''
-def ComputeRun(policy_CR, initial_state_CR, plot_CR=False, t_steps_CR=t_steps):
+def compute_run(policy_CR, initial_state_CR, plot_CR=False, t_steps_CR=t_steps):
     ''' lists for plotting '''
     if plot_CR:
         U_u_CR = [None for i in range(t_steps)]
@@ -200,9 +185,9 @@ def ComputeRun(policy_CR, initial_state_CR, plot_CR=False, t_steps_CR=t_steps):
             action = select_action(controls[0], std_sqr, train=False)
         elif not plot_CR:
             action, log_prob_a, entropy  = select_action(controls[0], std_sqr, train=True)
-        contrl={'U_u':float64(action)}
+        contrl={'U_u':np.float64(action)}
         ''' integrate the system for dtime=0.1 '''
-        final_state = Model_Integrator.ModelIntegration(params,initial_state_I,contrl,dtime)
+        final_state = Model_Integrator.model_integration(params,initial_state_I,contrl,dtime)
         ''' calculate probability of action taken '''
         if not plot_CR:
             log_probs_l[epi_n][step_j]=log_prob_a # global var
@@ -215,7 +200,7 @@ def ComputeRun(policy_CR, initial_state_CR, plot_CR=False, t_steps_CR=t_steps):
             y1_CR[step_j] = final_state[0]
             y2_CR[step_j] = final_state[1]
             t_CR[step_j] += tj
-            U_u_CR[step_j] = float64(action)
+            U_u_CR[step_j] = np.float64(action)
     reward_CR = final_state[1]
     if plot_CR:
         return reward_CR, y1_CR, y2_CR, t_CR, U_u_CR
@@ -229,7 +214,7 @@ Function to compute a single run given a policy -end
 inputs_PT = [i_PT*5.0/t_steps for i_PT in range(t_steps)]
 runs_PT = 100
 pert_size = 0.1
-y1_PT, y2_PT, t_PT, U_u_PT = PreTraining(policy, inputs_PT, runs_PT,
+y1_PT, y2_PT, t_PT, U_u_PT = pretraining(policy, inputs_PT, runs_PT,
                                  pert_size, initial_state_I=np.array([1,0]))
 y1_PT_Torch = Variable(torch.Tensor(y1_PT))
 y2_PT_Torch = Variable(torch.Tensor(y2_PT))
@@ -280,7 +265,7 @@ for i_episode in range(episode_n):
     if i_episode%std_sqr_red[1]==0:
         std_sqr = std_sqr*std_sqr_red[0]
     '''run episode with network "policy" '''
-    rewards_l[epi_n] = ComputeRun(policy, np.array([1,0]), plot_CR=False)
+    rewards_l[epi_n] = compute_run(policy, np.array([1,0]), plot_CR=False)
     epi_n = epi_n+1
     ''' --- TRAIN CURRENT POLICY NETWORK USING COMPUTED TRAJECTORIES --- '''
     if i_episode!=0 and i_episode%episode_update_n==0:
@@ -307,7 +292,7 @@ for i_episode in range(episode_n):
     ''' --- PLOT CURRENT MEAN POLICY --- '''
     if i_episode%record_n==0:
         # -- plotting lists (start) -- #
-        r_report, y1_l, y2_l, t_l, U_u_l = ComputeRun(policy, np.array([1,0]), plot_CR=True)
+        r_report, y1_l, y2_l, t_l, U_u_l = compute_run(policy, np.array([1,0]), plot_CR=True)
 
         print('i_episode = ',i_episode,'     current_reward = ',r_report)
         All_rewards_l.append(r_report)
