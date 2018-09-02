@@ -16,7 +16,7 @@ def model_integration(params, initial_state, controls, dtime):
     def ode_system(t, initial_state):
         #state vector
         y1_s = initial_state[0]
-        # y2_s = initial_state[1] # not involved in 
+        # y2_s = initial_state[1] # not directly involved in ode system
 
         dev_y1 = -(U_u+U_u**2*a_p)*y1_s
         dev_y2 = U_u*y1_s*b_p 
@@ -25,5 +25,4 @@ def model_integration(params, initial_state, controls, dtime):
     ode = scp.ode(ode_system)
     ode.set_integrator('lsoda', nsteps=3000)
     ode.set_initial_value(initial_state, t=0.0) # initial time always 0
-    new_state = list(ode.integrate(ode.t + dtime))
-    return np.array(new_state)  
+    return ode.integrate(ode.t + dtime)
