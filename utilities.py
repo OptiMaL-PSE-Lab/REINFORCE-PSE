@@ -1,4 +1,3 @@
-# torch imports
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -7,11 +6,11 @@ import torch.autograd as autograd
 from torch.autograd import Variable
 from torch.distributions import Categorical
 import torch.nn.utils as utils
-# other imports
+
 import copy
 import sys
-# model integration imports
 import numpy as np
+
 import model_integrator
 from model_integrator import model_integration
 
@@ -26,19 +25,13 @@ def normal_torch(act, mu, sigma_sq):
     b = 1/np.sqrt((2*sigma_sq**2*pi))
     return a*b
 
-# prints for 2 controls
 def select_action(control_mean, control_sigma, train=True):
     # NOTE: not sure if this works for vectorial controls, check
     # NOTE: should return only one prob
-    # control_sigma =  tensor([ 0.4420,  0.3498])
-    # control_mean =  tensor([ 2.9110,  2.0363])
     if train==True: # want control only or also probabilities
         eps = torch.FloatTensor([torch.randn(control_mean.size())])
-        # control_sigma =  tensor([ 0.4420,  0.3498])
         control_choice = (control_mean + np.sqrt(control_sigma)*Variable(eps)).data
-        # control_choice =  tensor([ 3.2173,  2.0184])
         prob = normal_torch(control_choice, control_mean, control_sigma)
-        # prob =  tensor([ 0.5396,  0.6742])
         log_prob = prob.log()
         # entropy is to explore low likelihood places
         entropy = -0.5*((control_sigma+2*pi).log()+1)
@@ -53,14 +46,10 @@ class PolicyNetwork(nn.Module):
         self.linear2 = nn.Linear(hidden_size, hidden_size, bias=True)
         self.linear3_m = nn.Linear(hidden_size, num_outputs, bias=True)
         self.linear3_sigma = nn.Linear(hidden_size, num_outputs, bias=True)
-# ADD relus!!!!
     def forward(self, inputs):
         x = inputs
-        #x = F.sigmoid(self.linear1(x))
-        #x = (F.sigmoid(self.linear2(x)))
         x = F.relu(self.linear1(x))
         x = F.relu(self.linear2(x))
-        # sigmoid restricts output (0-1), 5 restricts (0-5)
         mu = F.relu6(self.linear3_m(x))
         return mu
 
@@ -79,8 +68,7 @@ def pretraining(policy_PT, params, dtime, tf, states_n, control_inputs, runs_PT,
      for i_run in range(t_steps)]
       for i_control in range(runs_PT)]
 
-    ''' # --------- computing data for later trainning -start --------- # '''
-
+    # computing data for later trainning
     for i_episode in range(runs_PT):
         tj=np.array([0.0]) # define initial time at each episode as 0 !!
         controls = copy.deepcopy(control_inputs)
@@ -104,10 +92,8 @@ def pretraining(policy_PT, params, dtime, tf, states_n, control_inputs, runs_PT,
             # compile perturbed controls
             for j_control in range(len(control_inputs)):
                 U_u_PT[i_episode][step_j][j_control] = controls[j_control][step_j]
-    ''' # --------- computing data for later trainning -end --------- # '''
 
-    ''' # --------- Trainning data -start --------- # '''
-    # setting data for trainning
+    # setting data for training
     # controls
     y_data = [[[None for k_cntrl_state in range(0,len(control_inputs))]
      for k_step in range(0,t_steps)]
@@ -136,9 +122,7 @@ def pretraining(policy_PT, params, dtime, tf, states_n, control_inputs, runs_PT,
     labels_l = [Variable(torch.Tensor(y_data[j])) for j in range(0,len(y_data))]
     criterion = nn.MSELoss()
     optimizer = optim.Adam(policy_PT.parameters(), lr=1e-2)
-#    optimizer = torch.optim.LBFGS(policy_PT.parameters(), history_size=10000)
-#    def closure():
-#        return PT_loss
+    # optimizer = torch.optim.LBFGS(policy_PT.parameters(), history_size=10000)
     epoch_n = 10
     # start training
     for PT_epoch in range(epoch_n):
@@ -148,19 +132,16 @@ def pretraining(policy_PT, params, dtime, tf, states_n, control_inputs, runs_PT,
             for inpt, label in zip(inputs_l[kk], labels_l[kk]):
                 output = policy_PT(inpt)
                 PT_loss += criterion(output, label)
-        sys.stdout.write("predicted string: ")
+
         print(", epoch: %d, loss: %1.3f" % (PT_epoch + 1, PT_loss.data[0]))
         PT_loss.backward()
-#        optimizer.step(closure)
         optimizer.step()
-    ''' # --------- Trainning data -end --------- # '''
     return policy_PT
 
-def compute_run(policy_CR, params_CR, dtime_CR, tf_CR, states_n_CR, control_n_CR,
- t_steps_CR, runs_CR, std_sqr, initial_state_CR=np.array([1,0]), plot_CR=False):
+def compute_run(policy_CR, params_CR, dtime_CR, tf_CR, states_n_CR, control_n_CR, t_steps_CR, runs_CR, std_sqr, 
+                initial_state_CR=np.array([1,0]), plot_CR=False):
     if t_steps_CR != tf_CR/dtime_CR:
         print('t_steps and tf/dtime do not match t_step = ',t_steps_CR,' tf/dtime = ',tf_CR/dtime_CR)
-    ''' lists for plotting '''
     if plot_CR:
         controls_CR = [[None for i_control in range(control_n_CR)]
          for i_step in range(t_steps_CR)] # list to compile controls
@@ -169,20 +150,20 @@ def compute_run(policy_CR, params_CR, dtime_CR, tf_CR, states_n_CR, control_n_CR
         t_CR = [0 for i in range(t_steps_CR)] # list to compile states
     else:
         log_probs_l = [None for j_step in range(t_steps_CR)]
-    ''' define initial conditions numpy & pytorch '''
+    # define initial conditions numpy & pytorch
     tj_CR=np.array([0.])
     initial_state_I=initial_state_CR # define initial state for Integrator
     initial_state_P = np.hstack([initial_state_I,tf_CR-tj_CR]) # define initial state for Plicy calculation
     initial_state_P = Variable(torch.Tensor(initial_state_P)) # make it a torch variable
-    # -- to run iterations (end) -- #
+
     for step_j in range(t_steps_CR):
-        ''' compute the control by the ANN '''
-        controls=policy_CR(initial_state_P)
+        # compute the control by the ANN
+        controls = policy_CR(initial_state_P)
         if plot_CR:
             action = select_action(controls[0], std_sqr, train=False) # also depends if vector !!
         elif not plot_CR:
-            action, log_prob_a, entropy  = select_action(controls[0], std_sqr, train=True)
-        contrl={'U_u':float(action)}
+            action, log_prob_a, entropy = select_action(controls[0], std_sqr, train=True)
+        contrl = {'U_u':float(action)}
         #print('contrl = ',contrl)
         #print('action = ',action)
         #print('log_prob_a = ',log_prob_a)
@@ -193,13 +174,13 @@ def compute_run(policy_CR, params_CR, dtime_CR, tf_CR, states_n_CR, control_n_CR
 
         # calculate probability of action taken
         if not plot_CR:
-            log_probs_l[step_j]=log_prob_a # global var
+            log_probs_l[step_j] = log_prob_a # global var
             #print('log_probs_l = ',log_probs_l)
             #print('log_probs_l[step_j] = ',log_probs_l[step_j])
 
-        initial_state_I=copy.deepcopy(final_state)
+        initial_state_I = copy.deepcopy(final_state)
         tj_CR = tj_CR + dtime_CR # calculate next time
-        initial_state_P=np.hstack([initial_state_I,tf_CR-tj_CR])
+        initial_state_P = np.hstack([initial_state_I,tf_CR-tj_CR])
         initial_state_P = Variable(torch.Tensor(initial_state_P)) # make it a torch variable
 
         # lists for plotting
