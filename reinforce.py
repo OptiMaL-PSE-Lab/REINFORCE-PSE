@@ -1,17 +1,14 @@
 import os
 from os.path import join
-import copy
+
 import numpy as np
 import matplotlib.pyplot as plt
-
 import torch
-import torch.nn as nn
 import torch.optim as optim
 from torch.autograd import Variable
 
-import model_integrator
 from policies import PolicyNetwork
-from utilities import normal_torch, pretraining, select_action, compute_run
+from utilities import pretraining, compute_run
 
 np.random.seed(seed=666)
 torch.manual_seed(666)
@@ -47,8 +44,8 @@ inputs_PT = [i_PT * 5.0 / t_steps for i_PT in range(t_steps)]
 runs_PT = 100
 pert_size = 0.1
 y1_PT, y2_PT, t_PT, U_u_PT = pretraining(
-    policy, inputs_PT, params, runs_PT, pert_size, 
-    t_steps, ti, tf, dtime, 
+    policy, inputs_PT, params, runs_PT, pert_size,
+    t_steps, ti, tf, dtime,
     initial_state_I=np.array([1, 0])
     )
 y1_PT_Torch = Variable(torch.Tensor(y1_PT))

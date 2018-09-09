@@ -1,13 +1,11 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torch.nn.functional as F
 from torch.autograd import Variable
 
 import copy
 import numpy as np
 
-import model_integrator
 from model_integrator import model_integration
 
 pi = Variable(torch.FloatTensor([np.pi]))
@@ -23,6 +21,7 @@ def normal_torch(act, mu, sigma_sq):
     a = (-1 * (Variable(act) - mu).pow(2) / (2 * sigma_sq**2)).exp()
     b = 1 / np.sqrt((2 * sigma_sq**2 * pi))
     return a * b
+
 
 # NOTE: not sure if this works for vectorial controls, check
 # NOTE: should return only one prob
@@ -45,7 +44,7 @@ def select_action(control_mean, control_sigma, train=True):
 
 
 def pretraining(policy_PT, inputs, params, runs_PT, pert_size,
-                t_steps, ti, tf, dtime, 
+                t_steps, ti, tf, dtime,
                 epoch_n=100, initial_state_I=np.array([1, 0])):
     '''Trains parametric policy model to resemble desired starting function.'''
 
@@ -61,7 +60,7 @@ def pretraining(policy_PT, inputs, params, runs_PT, pert_size,
             controls = inputs[step_j]  # * (1 + np.random.uniform(-pert_size, pert_size))
             action = controls
             control = {'U_u': np.float64(action)}
-            final_state = model_integrator.model_integration(
+            final_state = model_integration(
                 params, initial_state_I, control, dtime
                 )
             initial_state_I = copy.deepcopy(final_state)
@@ -122,7 +121,7 @@ def compute_run(policy_CR, initial_state_CR, params, log_probs_l,
         elif not plot_CR:
             action, log_prob_a, entropy = select_action(controls[0], std_sqr, train=True)
         control = {'U_u': np.float64(action)}
-        final_state = model_integrator.model_integration(
+        final_state = model_integration(
             params, initial_state_I, control, dtime)
         if not plot_CR:
             log_probs_l[epi_n][step_j] = log_prob_a  # global var
