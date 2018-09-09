@@ -1,26 +1,23 @@
-import matplotlib.pyplot as plt
 import numpy as np
-
-# ANN RL imports
 import torch
 
-from model_integrator import model_integration
+# from model_integrator import model_integration
 from utilities import PolicyNetwork, pretraining, compute_run
 
 np.random.seed(seed=666)
 torch.manual_seed(666)
 
-contrl = {'U_u':0.5}
-params = {'a_p' : 0.5, 'b_p' : 1}
-initial_state_I = np.array([1,0])
+contrl = {'U_u': 0.5}
+params = {'a_p': 0.5, 'b_p': 1}
+initial_state_I = np.array([1, 0])
 dtime = 0.1
 t_steps = 10
-tf = dtime*t_steps
+tf = dtime * t_steps
 
 policy = PolicyNetwork(6, 3, 1)
 
 runs_PT = 3
-inputs_PT = [[i_PT*5.0/t_steps for i_PT in range(t_steps)]] # list of control inputs
+inputs_PT = [[i_PT * 5.0 / t_steps for i_PT in range(t_steps)]]  # list of control inputs
 states_n = 2
 pert_size = 0.1
 
@@ -31,9 +28,9 @@ print(' --- Pre-Training Done! ---')
 runs_train = 3
 control_n = 1
 std_sqr = 1.0
-output =  compute_run(
+output = compute_run(
     policy, params, dtime, tf, states_n, control_n, t_steps,
-    runs_train, std_sqr, initial_state_CR=np.array([1,0]), plot_CR=True
+    runs_train, std_sqr, initial_state_CR=np.array([1, 0]), plot_CR=True
 )
 
 print('output = ', output)
