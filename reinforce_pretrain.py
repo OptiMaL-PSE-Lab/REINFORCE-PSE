@@ -8,11 +8,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-import torch.autograd as autograd
 from torch.autograd import Variable
-import torch.nn.functional as F
-from torch.distributions import Categorical
-import torch.nn.utils as utils
 
 import model_integrator
 
@@ -20,18 +16,21 @@ np.random.seed(seed=666)
 torch.manual_seed(666)
 pi = Variable(torch.FloatTensor([np.pi]))
 
+
 class PolicyNetwork(nn.Module):
     '''
     Policy-network
     Our model will be a feed-forward neural network that takes in the states.
     Outputs mean and std of an action (exploraion-explotation).
     '''
+
     def __init__(self, hidden_size, num_inputs, num_outputs):
         super(PolicyNetwork, self).__init__()
         self.linear1 = nn.Linear(num_inputs, hidden_size, bias=True)
         self.linear2 = nn.Linear(hidden_size, hidden_size, bias=True)
         self.linear3_m = nn.Linear(hidden_size, num_outputs, bias=True)
         self.linear3_sigma = nn.Linear(hidden_size, num_outputs, bias=True)
+
     def forward(self, inputs):
         x = inputs
         x = F.relu(self.linear1(x))

@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.integrate as scp
 
+
 def model_integration(params, initial_state, controls, dtime):
     '''
     params: dictionary of parameters passed to a model
@@ -11,10 +12,10 @@ def model_integration(params, initial_state, controls, dtime):
     # dtime es el tiempo que se mantiene el control constante
     U_u = controls['U_u']
     a_p = params['a_p']
-    b_p=params['b_p']
+    b_p = params['b_p']
 
     def ode_system(t, initial_state):
-        #state vector
+        # state vector
         y1_s = initial_state[0]
         # y2_s = initial_state[1] # not directly involved in ode system
 
