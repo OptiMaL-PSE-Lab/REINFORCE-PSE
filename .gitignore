@@ -7,3 +7,7 @@
 
 # auxiliary files
 *.png
+*.pdf
+
+# notebooks
+*.ipynb
