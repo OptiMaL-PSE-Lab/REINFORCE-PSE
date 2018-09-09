@@ -50,32 +50,33 @@ def pretraining(policy_PT, inputs, runs_PT, pert_size, initial_state_I=np.array(
     for i_episode in range(runs_PT):
         tj = np.array([ti])  # define initial time at each episode
         for step_j in range(t_steps):
-            controls = inputs[step_j] * (1 + np.random.uniform(-pert_size, pert_size))
+            controls = inputs[step_j]  # * (1 + np.random.uniform(-pert_size, pert_size))
             action = controls
-            contrl = {'U_u': np.float64(action)}
+            control = {'U_u': np.float64(action)}
             final_state = model_integrator.model_integration(
-                params, initial_state_I, contrl, dtime)
+                params, initial_state_I, control, dtime
+                )
             initial_state_I = copy.deepcopy(final_state)
             tj = tj + dtime  # calculate next time
             y1_PT[i_episode][step_j] = final_state[0]
             y2_PT[i_episode][step_j] = final_state[1]
             t_PT[i_episode][step_j] = tf - tj
             U_u_PT[i_episode][step_j] = np.float64(action)
-    # setting data for trainning
-    y_data = [[(U_u_PT[j][i]) for i in range(0, len(U_u_PT[j]))]
-              for j in range(0, len(U_u_PT))]
+    # setting data for training
+    y_data = [[(U_u_PT[j][i]) for i in range(len(U_u_PT[j]))]
+              for j in range(len(U_u_PT))]
     x_data = [[(y1_PT[j][i], y2_PT[j][i], t_PT[j][i])
-               for i in range(0, len(y1_PT[j]))]
-              for j in range(0, len(y1_PT))]
-    # passing data as torh vectors
-    inputs_l = [Variable(torch.Tensor(x_data[i])) for i in range(0, len(x_data))]
-    labels_l = [Variable(torch.Tensor(y_data[j])) for j in range(0, len(y_data))]
+               for i in range(len(y1_PT[j]))]
+              for j in range(len(y1_PT))]
+    # passing data as torch vectors
+    inputs_l = [Variable(torch.Tensor(x_data[i])) for i in range(len(x_data))]
+    labels_l = [Variable(torch.Tensor(y_data[j])) for j in range(len(y_data))]
     # training parameters
     criterion = nn.MSELoss()
     optimizer = optim.Adam(policy.parameters(), lr=1e-2)
     # optimizer = torch.optim.LBFGS(policy_PT.parameters(), history_size=10000)
 
-    epoch_n = 400  # TODO: avoid hard-code
+    epoch_n = 100  # TODO: avoid hard-code
     for PT_epoch in range(epoch_n):
         optimizer.zero_grad()
         PT_loss = 0
@@ -83,7 +84,7 @@ def pretraining(policy_PT, inputs, runs_PT, pert_size, initial_state_I=np.array(
             for inpt, label in zip(inputs_l[kk], labels_l[kk]):
                 output = policy_PT(inpt)
                 PT_loss += criterion(output, label)
-        print(", epoch: %d, loss: %1.3f" % (PT_epoch + 1, PT_loss.data[0]))
+        print("epoch: %d, loss: %1.3f" % (PT_epoch + 1, PT_loss.data[0]))
         PT_loss.backward()
         optimizer.step()
     return y1_PT[0], y2_PT[0], t_PT[0], U_u_PT[0]
@@ -114,7 +115,7 @@ def select_action(control_mean, control_sigma, train=True):
 
 # problem parameters
 episode_n = 100000
-record_n = 10000
+record_n = 1000
 std_sqr_red = (1, record_n)
 
 # specifications for dynamic system
@@ -158,9 +159,9 @@ def compute_run(policy_CR, initial_state_CR, plot_CR=False, t_steps_CR=t_steps):
             action = select_action(controls[0], std_sqr, train=False)
         elif not plot_CR:
             action, log_prob_a, entropy = select_action(controls[0], std_sqr, train=True)
-        contrl = {'U_u': np.float64(action)}
+        control = {'U_u': np.float64(action)}
         final_state = model_integrator.model_integration(
-            params, initial_state_I, contrl, dtime)
+            params, initial_state_I, control, dtime)
         if not plot_CR:
             log_probs_l[epi_n][step_j] = log_prob_a  # global var
         initial_state_I = copy.deepcopy(final_state)
@@ -181,7 +182,7 @@ def compute_run(policy_CR, initial_state_CR, plot_CR=False, t_steps_CR=t_steps):
         return reward_CR
 
 
-# Pre-trainning
+# Pre-training
 inputs_PT = [i_PT * 5.0 / t_steps for i_PT in range(t_steps)]
 runs_PT = 100
 pert_size = 0.1
