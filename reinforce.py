@@ -12,7 +12,6 @@ from utilities import pretraining, compute_run
 
 np.random.seed(seed=666)
 torch.manual_seed(666)
-pi = Variable(torch.FloatTensor([np.pi]))
 
 
 # problem parameters

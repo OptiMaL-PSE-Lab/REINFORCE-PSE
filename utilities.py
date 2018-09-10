@@ -8,8 +8,6 @@ import numpy as np
 
 from model_integrator import model_integration
 
-pi = Variable(torch.FloatTensor([np.pi]))
-
 
 def normal_np(act, mu, sigma_sq):
     a = np.exp(-(act - mu)**2 / (2. * sigma_sq**2))
@@ -19,7 +17,7 @@ def normal_np(act, mu, sigma_sq):
 
 def normal_torch(act, mu, sigma_sq):
     a = (-1 * (Variable(act) - mu).pow(2) / (2 * sigma_sq**2)).exp()
-    b = 1 / np.sqrt((2 * sigma_sq**2 * pi))
+    b = 1 / np.sqrt((2 * sigma_sq**2 * np.pi))
     return a * b
 
 
@@ -27,7 +25,6 @@ def normal_torch(act, mu, sigma_sq):
 # NOTE: should return only one prob
 def select_action(control_mean, control_sigma, train=True):
     '''
-    Select an action accordingly to an epsilon greedy policy.
     In the constinous space, this means adding a random perturbation to our control
     np.random.normal: Draw random samples from a normal (Gaussian) distribution.
     '''
@@ -37,7 +34,7 @@ def select_action(control_mean, control_sigma, train=True):
         prob = normal_torch(control_choice, control_mean, control_sigma)
         log_prob = prob.log()
         # entropy is to explore low likelihood places
-        entropy = -0.5 * ((control_sigma + 2 * pi).log() + 1)
+        entropy = -0.5 * ((control_sigma + 2 * np.pi).log() + 1)
         return control_choice, log_prob, entropy
     elif not train:
         return control_mean
