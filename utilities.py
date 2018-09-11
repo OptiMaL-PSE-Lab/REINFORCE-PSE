@@ -40,101 +40,97 @@ def select_action(control_mean, control_sigma, train=True):
         return control_mean
 
 
-def pretraining(policy_PT, inputs, params, runs_PT, pert_size,
-                t_steps, ti, tf, dtime,
-                epoch_n=100, initial_state_I=np.array([1, 0])):
+def pretraining(policy, fixed_actions, params, runs, pert_size,
+                timesteps, ti, tf, dtime, initial_state,
+                epochs=100):
     '''Trains parametric policy model to resemble desired starting function.'''
 
     # lists to be filled
-    y1_PT = [[None for i_PT in range(t_steps)] for i_PT in range(runs_PT)]
-    y2_PT = [[None for i_PT in range(t_steps)] for i_PT in range(runs_PT)]
-    t_PT = [[None for i_PT in range(t_steps)] for i_PT in range(runs_PT)]
-    U_u_PT = [[None for i_PT in range(t_steps)] for i_PT in range(runs_PT)]
+    state_range = [[(None, None, None) for step in range(timesteps)] for run in range(runs)]
+    control_range = [[None for step in range(timesteps)] for run in range(runs)]
 
-    for i_episode in range(runs_PT):
-        tj = np.array([ti])  # define initial time at each episode
-        for step_j in range(t_steps):
-            controls = inputs[step_j]  # * (1 + np.random.uniform(-pert_size, pert_size))
-            action = controls
-            control = {'U_u': np.float64(action)}
-            final_state = model_integration(
-                params, initial_state_I, control, dtime
-                )
-            initial_state_I = copy.deepcopy(final_state)
-            tj = tj + dtime  # calculate next time
-            y1_PT[i_episode][step_j] = final_state[0]
-            y2_PT[i_episode][step_j] = final_state[1]
-            t_PT[i_episode][step_j] = tf - tj
-            U_u_PT[i_episode][step_j] = np.float64(action)
+    for run in range(runs):
+        t = ti  # define initial time at each episode
+        for step in range(timesteps):
+            action = fixed_actions[step]  # * (1 + np.random.uniform(-pert_size, pert_size))
+            control = {'U': np.float64(action)}
+
+            final_state = model_integration(params, initial_state, control, dtime)
+            initial_state = copy.deepcopy(final_state)
+
+            state_range[run][step] = (*final_state, tf-t) # add current time to state
+            control_range[run][step] = np.float64(action)
+
+            t = t + dtime  # calculate next time
+
     # setting data for training
-    y_data = [[(U_u_PT[j][i]) for i in range(len(U_u_PT[j]))]
-              for j in range(len(U_u_PT))]
-    x_data = [[(y1_PT[j][i], y2_PT[j][i], t_PT[j][i])
-               for i in range(len(y1_PT[j]))]
-              for j in range(len(y1_PT))]
     # passing data as torch vectors
-    inputs_l = [Variable(torch.Tensor(x_data[i])) for i in range(len(x_data))]
-    labels_l = [Variable(torch.Tensor(y_data[j])) for j in range(len(y_data))]
+    tensor_states = [Variable(torch.Tensor(state)) for state in state_range]
+    tensor_controls = [Variable(torch.Tensor(control)) for control in control_range]
+
     # training parameters
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(policy_PT.parameters(), lr=1e-2)
-    # optimizer = torch.optim.LBFGS(policy_PT.parameters(), history_size=10000)
+    optimizer = optim.Adam(policy.parameters(), lr=1e-2)
+    # optimizer = torch.optim.LBFGS(policy.parameters(), history_size=10000)
 
-    for PT_epoch in range(epoch_n):
+    for epoch in range(epochs):
         optimizer.zero_grad()
-        PT_loss = 0
-        for kk in range(len(inputs_l)):
-            for inpt, label in zip(inputs_l[kk], labels_l[kk]):
-                output = policy_PT(inpt)
-                PT_loss += criterion(output, label)
-        print("epoch: %d, loss: %1.3f" % (PT_epoch + 1, PT_loss.data[0]))
-        PT_loss.backward()
+        loss = 0
+        for kk in range(len(tensor_states)):
+            for state, control in zip(tensor_states[kk], tensor_controls[kk]):
+                output = policy(state)
+                loss += criterion(output, control)
+        print("epoch: %d, loss: %1.3f" % (epoch + 1, loss.data[0]))
+        loss.backward()
         optimizer.step()
-    return y1_PT[0], y2_PT[0], t_PT[0], U_u_PT[0]
+
+    y1_, y2_, t_ = state_range[0]
+    U_ = control_range[0]
+    return y1_, y2_, t_, U_
 
 
 def compute_run(policy_CR, initial_state_CR, params, log_probs_l,
-                dtime, t_steps_CR, ti, tf, std_sqr, epi_n,
+                dtime, timesteps_CR, ti, tf, std_sqr, epi_n,
                 plot_CR=False):
     '''Compute a single run given a policy.'''
 
     if plot_CR:
-        U_u_CR = [None for i in range(t_steps_CR)]
-        y1_CR = [None for i in range(t_steps_CR)]
-        y2_CR = [None for i in range(t_steps_CR)]
-        t_CR = [0 for i in range(t_steps_CR)]
+        U_CR = [None for i in range(timesteps_CR)]
+        y1_CR = [None for i in range(timesteps_CR)]
+        y2_CR = [None for i in range(timesteps_CR)]
+        t_CR = [0 for i in range(timesteps_CR)]
 
     # define initial conditions
     tj = np.array([ti])
-    initial_state_I = initial_state_CR  # define initial state for Integrator
+    initial_state = initial_state_CR  # define initial state for Integrator
     # define initial state for Plicy calculation
-    initial_state_P = np.hstack([initial_state_I, tf - tj])
+    initial_state_P = np.hstack([initial_state, tf - tj])
     initial_state_P = Variable(torch.Tensor(initial_state_P))  # make it a torch variable
 
-    for step_j in range(t_steps_CR):
+    for step in range(timesteps_CR):
         controls = policy_CR(initial_state_P)
         if plot_CR:
             action = select_action(controls[0], std_sqr, train=False)
         elif not plot_CR:
             action, log_prob_a, entropy = select_action(controls[0], std_sqr, train=True)
-        control = {'U_u': np.float64(action)}
+        control = {'U': np.float64(action)}
         final_state = model_integration(
-            params, initial_state_I, control, dtime)
+            params, initial_state, control, dtime)
         if not plot_CR:
-            log_probs_l[epi_n][step_j] = log_prob_a  # global var
-        initial_state_I = copy.deepcopy(final_state)
+            log_probs_l[epi_n][step] = log_prob_a  # global var
+        initial_state = copy.deepcopy(final_state)
         tj = tj + dtime  # calculate next time
-        initial_state_P = np.hstack([initial_state_I, tf - tj])
+        initial_state_P = np.hstack([initial_state, tf - tj])
         initial_state_P = Variable(torch.Tensor(initial_state_P)
                                    )  # make it a torch variable
 
         if plot_CR:
-            y1_CR[step_j] = final_state[0]
-            y2_CR[step_j] = final_state[1]
-            t_CR[step_j] += tj
-            U_u_CR[step_j] = np.float64(action)
+            y1_CR[step] = final_state[0]
+            y2_CR[step] = final_state[1]
+            t_CR[step] += tj
+            U_CR[step] = np.float64(action)
     reward_CR = final_state[1]
     if plot_CR:
-        return reward_CR, y1_CR, y2_CR, t_CR, U_u_CR
+        return reward_CR, y1_CR, y2_CR, t_CR, U_CR
     if not plot_CR:
         return reward_CR

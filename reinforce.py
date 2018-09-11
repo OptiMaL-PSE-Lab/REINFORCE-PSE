@@ -25,10 +25,13 @@ iter_n = 0  # keep track of number of integration iterations
 ti = 0  # define initial time
 tf = 1  # define final time
 t_steps = int((tf - ti) / dtime)  # number of steps per episode
-params = {'a_p': 0.5, 'b_p': 1}
+params = {'a': 0.5, 'b': 1}
 
 # define policy network and other learning/reporting parameters
-policy = PolicyNetwork(6, 3, 1)  # define ANN with 6 hidden, 3 input, 1 output
+hidden_layers_size = 6
+input_size = 3
+output_size = 1
+policy = PolicyNetwork(hidden_layers_size, input_size, output_size)
 optimizer = optim.Adam(policy.parameters(), lr=1e-4)
 All_rewards_l = []
 std_sqr = 1.0  # remember this is reduced first iter !!
@@ -42,10 +45,10 @@ epi_n = -1  # because I sum one
 inputs_PT = [i_PT * 5.0 / t_steps for i_PT in range(t_steps)]
 runs_PT = 100
 pert_size = 0.1
-y1_PT, y2_PT, t_PT, U_u_PT = pretraining(
+initial_state = np.array([1, 0])
+y1_PT, y2_PT, t_PT, U_PT = pretraining(
     policy, inputs_PT, params, runs_PT, pert_size,
-    t_steps, ti, tf, dtime,
-    initial_state_I=np.array([1, 0])
+    t_steps, ti, tf, dtime, initial_state
     )
 y1_PT_Torch = Variable(torch.Tensor(y1_PT))
 y2_PT_Torch = Variable(torch.Tensor(y2_PT))
@@ -78,7 +81,7 @@ plt.xlabel('time', fontsize=15)
 
 plt.subplot2grid((2, 4), (1, 2), colspan=2)
 plt.plot(U_PT_plot)
-plt.plot(U_u_PT, 'ro')
+plt.plot(U_PT, 'ro')
 plt.ylabel('u', rotation=360, fontsize=15)
 plt.xlabel('time', fontsize=15)
 plt.show()
@@ -127,7 +130,7 @@ for i_episode in range(episode_n):
         log_probs_l = [[None for j in range(t_steps)] for i in range(episode_update_n)]
     # PLOT CURRENT MEAN POLICY
     if i_episode % record_n == 0:
-        r_report, y1_l, y2_l, t_l, U_u_l = compute_run(
+        r_report, y1_l, y2_l, t_l, U_l = compute_run(
             policy, np.array([1, 0]), params, log_probs_l,
             dtime, t_steps, ti, tf, std_sqr, epi_n,
             plot_CR=True
@@ -147,7 +150,7 @@ for i_episode in range(episode_n):
         plt.xlabel('time', fontsize=15)
 
         plt.subplot2grid((2, 4), (1, 0), colspan=2)
-        plt.plot(U_u_l)
+        plt.plot(U_l)
         plt.ylabel('u', rotation=360, fontsize=15)
         plt.xlabel('time', fontsize=15)
         plt.savefig(
