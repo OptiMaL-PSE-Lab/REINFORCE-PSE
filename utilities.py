@@ -51,14 +51,16 @@ def pretraining(policy, fixed_actions, params, runs, pert_size,
 
     for run in range(runs):
         t = ti  # define initial time at each episode
+        integrated_state = copy.deepcopy(initial_state)
         for step in range(timesteps):
-            action = fixed_actions[step]  # * (1 + np.random.uniform(-pert_size, pert_size))
+            action = fixed_actions[step] * (1 + np.random.uniform(-pert_size, pert_size))
             control = {'U': np.float64(action)}
 
-            final_state = model_integration(params, initial_state, control, dtime)
-            initial_state = copy.deepcopy(final_state)
+            y1, y2 = model_integration(params, integrated_state, control, dtime)
 
-            state_range[run][step] = (*final_state, tf-t) # add current time to state
+            time_left = tf - t
+            state = (y1, y2, time_left) # add current time to state
+            state_range[run][step] = state
             control_range[run][step] = np.float64(action)
 
             t = t + dtime  # calculate next time
@@ -76,17 +78,15 @@ def pretraining(policy, fixed_actions, params, runs, pert_size,
     for epoch in range(epochs):
         optimizer.zero_grad()
         loss = 0
-        for kk in range(len(tensor_states)):
-            for state, control in zip(tensor_states[kk], tensor_controls[kk]):
+        for run in range(runs):
+            for state, control in zip(tensor_states[run], tensor_controls[run]):
                 output = policy(state)
                 loss += criterion(output, control)
-        print("epoch: %d, loss: %1.3f" % (epoch + 1, loss.data[0]))
+        print("epoch: %d, loss: %1.3f" % (epoch + 1, loss.item()))
         loss.backward()
         optimizer.step()
 
-    y1_, y2_, t_ = state_range[0]
-    U_ = control_range[0]
-    return y1_, y2_, t_, U_
+    return state_range, control_range
 
 
 def compute_run(policy_CR, initial_state_CR, params, log_probs_l,

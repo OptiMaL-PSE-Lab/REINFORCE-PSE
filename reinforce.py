@@ -46,23 +46,24 @@ inputs_PT = [i_PT * 5.0 / t_steps for i_PT in range(t_steps)]
 runs_PT = 100
 pert_size = 0.1
 initial_state = np.array([1, 0])
-y1_PT, y2_PT, t_PT, U_PT = pretraining(
+state_range_PT, control_range_PT = pretraining(
     policy, inputs_PT, params, runs_PT, pert_size,
     t_steps, ti, tf, dtime, initial_state
     )
-y1_PT_Torch = Variable(torch.Tensor(y1_PT))
-y2_PT_Torch = Variable(torch.Tensor(y2_PT))
-t_PT_Torch = Variable(torch.Tensor(t_PT))
+first_run_states = state_range_PT[0]
+first_run_control = control_range_PT[0]
 
-U_PT_plot = [None for i_PT in range(t_steps)]
+y1_PT = [state[0] for state in first_run_states]
+y2_PT = [state[1] for state in first_run_states]
+pretrained_policy_control = [None for i_PT in range(t_steps)]
 for point in range(t_steps):
     # evaluate model with real data
-    inp_point = Variable(torch.Tensor(
-        [y1_PT_Torch[point], y2_PT_Torch[point], t_PT_Torch[point]]))
+    state_PT = first_run_states[point]
+    inp_point = Variable(torch.Tensor(state_PT))
     output = policy(inp_point)
     output_np = output.data.numpy()
     # compile results
-    U_PT_plot[point] = output_np[0]
+    pretrained_policy_control[point] = output_np[0]
 
 plt.subplot2grid((2, 4), (0, 0), colspan=2)
 plt.plot(y1_PT)
@@ -75,13 +76,13 @@ plt.ylabel('y2 ', rotation=360, fontsize=15)
 plt.xlabel('time', fontsize=15)
 
 plt.subplot2grid((2, 4), (1, 0), colspan=2)
-plt.plot(U_PT_plot)
+plt.plot(pretrained_policy_control)
 plt.ylabel('u', rotation=360, fontsize=15)
 plt.xlabel('time', fontsize=15)
 
 plt.subplot2grid((2, 4), (1, 2), colspan=2)
-plt.plot(U_PT_plot)
-plt.plot(U_PT, 'ro')
+plt.plot(pretrained_policy_control)
+plt.plot(first_run_control, 'ro')
 plt.ylabel('u', rotation=360, fontsize=15)
 plt.xlabel('time', fontsize=15)
 plt.show()
