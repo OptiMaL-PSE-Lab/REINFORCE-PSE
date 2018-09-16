@@ -34,7 +34,7 @@ def select_action(control_mean, control_sigma, train=True):
         prob = normal_torch(control_choice, control_mean, control_sigma)
         log_prob = prob.log()
         # entropy is to explore low likelihood places
-        entropy = -0.5 * ((control_sigma + 2 * np.pi).log() + 1)
+        entropy = -0.5 * (np.log(control_sigma + 2 * np.pi) + 1)
         return control_choice, log_prob, entropy
     elif not train:
         return control_mean
