@@ -103,7 +103,7 @@ for i_episode in range(episode_n):
     rewards_l[epi_n] = compute_run(
         policy, initial, params, log_probs_l,
         dtime, t_steps, ti, tf, std_sqr, epi_n,
-        plot_CR=False
+        plot=False
         )
     epi_n = epi_n + 1
     # TRAIN CURRENT POLICY NETWORK USING COMPUTED TRAJECTORIES
@@ -134,7 +134,7 @@ for i_episode in range(episode_n):
         r_report, y1_l, y2_l, t_l, U_l = compute_run(
             policy, np.array([1, 0]), params, log_probs_l,
             dtime, t_steps, ti, tf, std_sqr, epi_n,
-            plot_CR=True
+            plot=True
             )
 
         print('i_episode = ', i_episode, '     current_reward = ', r_report)

@@ -88,49 +88,45 @@ def pretraining(policy, fixed_actions, params, runs, pert_size,
 
     return state_range, control_range
 
-
-def compute_run(policy_CR, initial_state_CR, params, log_probs_l,
-                dtime, timesteps_CR, ti, tf, std_sqr, epi_n,
-                plot_CR=False):
+def compute_run(policy, initial_state, params, log_probs,
+                dtime, timesteps, ti, tf, std_sqr, epi_n,
+                plot=False):
     '''Compute a single run given a policy.'''
 
-    if plot_CR:
-        U_CR = [None for i in range(timesteps_CR)]
-        y1_CR = [None for i in range(timesteps_CR)]
-        y2_CR = [None for i in range(timesteps_CR)]
-        t_CR = [0 for i in range(timesteps_CR)]
+    if plot:
+        U_CR = [None for i in range(timesteps)]
+        y1_CR = [None for i in range(timesteps)]
+        y2_CR = [None for i in range(timesteps)]
+        t_CR = [0 for i in range(timesteps)]
 
     # define initial conditions
-    tj = np.array([ti])
-    initial_state = initial_state_CR  # define initial state for Integrator
-    # define initial state for Plicy calculation
-    initial_state_P = np.hstack([initial_state, tf - tj])
+    t = ti
+    # define initial state for Policy calculation
+    initial_state_P = np.hstack([initial_state, tf - t])
     initial_state_P = Variable(torch.Tensor(initial_state_P))  # make it a torch variable
 
-    for step in range(timesteps_CR):
-        controls = policy_CR(initial_state_P)
-        if plot_CR:
+    for step in range(timesteps):
+        controls = policy(initial_state_P)
+        if plot:
             action = select_action(controls[0], std_sqr, train=False)
-        elif not plot_CR:
+        else:
             action, log_prob_a, entropy = select_action(controls[0], std_sqr, train=True)
         control = {'U': np.float64(action)}
-        final_state = model_integration(
-            params, initial_state, control, dtime)
-        if not plot_CR:
-            log_probs_l[epi_n][step] = log_prob_a  # global var
+        final_state = model_integration(params, initial_state, control, dtime)
+        if not plot:
+            log_probs[epi_n][step] = log_prob_a  # global var
         initial_state = copy.deepcopy(final_state)
-        tj = tj + dtime  # calculate next time
-        initial_state_P = np.hstack([initial_state, tf - tj])
-        initial_state_P = Variable(torch.Tensor(initial_state_P)
-                                   )  # make it a torch variable
+        t = t + dtime  # calculate next time
+        initial_state_P = np.hstack([initial_state, tf - t])
+        initial_state_P = Variable(torch.Tensor(initial_state_P))
 
-        if plot_CR:
+        if plot:
             y1_CR[step] = final_state[0]
             y2_CR[step] = final_state[1]
-            t_CR[step] += tj
+            t_CR[step] += t
             U_CR[step] = np.float64(action)
     reward_CR = final_state[1]
-    if plot_CR:
+    if plot:
         return reward_CR, y1_CR, y2_CR, t_CR, U_CR
-    if not plot_CR:
+    else:
         return reward_CR
