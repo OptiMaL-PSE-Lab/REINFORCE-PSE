@@ -5,8 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 import torch.optim as optim
-from torch.autograd import Variable
-
+from torch import Tensor
 from policies import PolicyNetwork
 from utilities import pretraining, compute_run
 
@@ -48,7 +47,7 @@ pert_size = 0.1
 initial_state = np.array([1, 0])
 state_range_PT, control_range_PT = pretraining(
     policy, inputs_PT, params, runs_PT, pert_size,
-    t_steps, ti, tf, dtime, initial_state
+    t_steps, ti, tf, dtime, initial_state, epochs=10
     )
 first_run_states = state_range_PT[0]
 first_run_control = control_range_PT[0]
@@ -59,7 +58,7 @@ pretrained_policy_control = [None for i_PT in range(t_steps)]
 for point in range(t_steps):
     # evaluate model with real data
     state_PT = first_run_states[point]
-    inp_point = Variable(torch.Tensor(state_PT))
+    inp_point = Tensor(state_PT)
     output = policy(inp_point)
     output_np = output.data.numpy()
     # compile results
@@ -115,7 +114,7 @@ for i_episode in range(episode_n):
             for i_j in reversed(range(len(log_probs_l[i_ep]))):  # not sure why
                 R = gamma * R + rewards_l[i_ep]
                 loss = loss - (
-                    log_probs_l[i_ep][i_j] * Variable(R).expand_as(log_probs_l[i_ep][i_j])
+                    log_probs_l[i_ep][i_j] * R.expand_as(log_probs_l[i_ep][i_j])
                     ).sum()
                 # A3C: We add entropy to the loss to encourage exploration
                 # https://github.com/dennybritz/reinforcement-learning/issues/34

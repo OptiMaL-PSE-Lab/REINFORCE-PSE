@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.autograd import Variable
+from torch import Tensor, FloatTensor
 
 import copy
 import numpy as np
@@ -16,7 +16,7 @@ def normal_np(act, mu, sigma_sq):
 
 
 def normal_torch(act, mu, sigma_sq):
-    a = (-1 * (Variable(act) - mu).pow(2) / (2 * sigma_sq**2)).exp()
+    a = (-1 * (Tensor(act) - mu).pow(2) / (2 * sigma_sq**2)).exp()
     b = 1 / np.sqrt((2 * sigma_sq**2 * np.pi))
     return a * b
 
@@ -29,8 +29,8 @@ def select_action(control_mean, control_sigma, train=True):
     np.random.normal: Draw random samples from a normal (Gaussian) distribution.
     '''
     if train:  # want control only or also probabilities
-        eps = torch.FloatTensor([torch.randn(control_mean.size())])
-        control_choice = (control_mean + np.sqrt(control_sigma) * Variable(eps)).data
+        eps = FloatTensor([torch.randn(control_mean.size())])
+        control_choice = (control_mean + np.sqrt(control_sigma) * eps).data
         prob = normal_torch(control_choice, control_mean, control_sigma)
         log_prob = prob.log()
         # entropy is to explore low likelihood places
@@ -67,8 +67,8 @@ def pretraining(policy, fixed_actions, params, runs, pert_size,
 
     # setting data for training
     # passing data as torch vectors
-    tensor_states = [Variable(torch.Tensor(state)) for state in state_range]
-    tensor_controls = [Variable(torch.Tensor(control)) for control in control_range]
+    tensor_states = [Tensor(state) for state in state_range]
+    tensor_controls = [Tensor(control) for control in control_range]
 
     # training parameters
     criterion = nn.MSELoss()
@@ -103,7 +103,7 @@ def compute_run(policy, initial_state, params, log_probs,
     t = ti
     # define initial state for Policy calculation
     initial_state_P = np.hstack([initial_state, tf - t])
-    initial_state_P = Variable(torch.Tensor(initial_state_P))  # make it a torch variable
+    initial_state_P = Tensor(initial_state_P)
 
     for step in range(timesteps):
         controls = policy(initial_state_P)
@@ -118,7 +118,7 @@ def compute_run(policy, initial_state, params, log_probs,
         initial_state = copy.deepcopy(final_state)
         t = t + dtime  # calculate next time
         initial_state_P = np.hstack([initial_state, tf - t])
-        initial_state_P = Variable(torch.Tensor(initial_state_P))
+        initial_state_P = Tensor(initial_state_P)
 
         if plot:
             y1_CR[step] = final_state[0]
