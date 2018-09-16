@@ -16,11 +16,11 @@ def model_integration(params, initial_state, controls, time_interval):
 
     def state_model(t, initial_state):
         # state vector
-        y1_s = initial_state[0]
-        # y2_s = initial_state[1] # not directly involved in ode system
+        y1 = initial_state[0]
+        # y2 = initial_state[1] # not directly involved in ode system
 
-        dev_y1 = -(U + U**2 * a) * y1_s
-        dev_y2 = U * y1_s * b
+        dev_y1 = -(U + U**2 * a) * y1
+        dev_y2 = U * y1 * b
         return np.array([dev_y1, dev_y2], dtype='float64')
 
     ode = scp.ode(state_model)

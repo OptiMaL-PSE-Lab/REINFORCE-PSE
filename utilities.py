@@ -6,7 +6,7 @@ from torch.autograd import Variable
 import copy
 import numpy as np
 
-from model_integrator import model_integration
+from integrator import model_integration
 
 
 def normal_np(act, mu, sigma_sq):
