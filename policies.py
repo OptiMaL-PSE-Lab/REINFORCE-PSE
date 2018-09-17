@@ -20,4 +20,5 @@ class PolicyNetwork(nn.Module):
         x = F.relu(F.dropout(self.linear1(x), p=0.8, training=self.training))
         x = F.relu(F.dropout(self.linear2(x), p=0.8, training=self.training))
         mu = F.relu6(self.linear3(x))
+        # mu = 6 * F.sigmoid(self.linear3(x))
         return mu

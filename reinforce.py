@@ -47,7 +47,8 @@ pert_size = 0.1
 initial_state = np.array([1, 0])
 state_range_PT, control_range_PT = pretraining(
     policy, inputs_PT, params, runs_PT, pert_size,
-    t_steps, ti, tf, dtime, initial_state, epochs=10
+    t_steps, ti, tf, dtime, initial_state,
+    learning_rate=1e-2, epochs=10
     )
 first_run_states = state_range_PT[0]
 first_run_control = control_range_PT[0]

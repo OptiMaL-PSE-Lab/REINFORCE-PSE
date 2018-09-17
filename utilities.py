@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch import Tensor, FloatTensor
+from torch import Tensor
 
 import copy
 import numpy as np
@@ -29,7 +29,7 @@ def select_action(control_mean, control_sigma, train=True):
     np.random.normal: Draw random samples from a normal (Gaussian) distribution.
     '''
     if train:  # want control only or also probabilities
-        eps = FloatTensor([torch.randn(control_mean.size())])
+        eps = torch.randn(1)
         control_choice = (control_mean + np.sqrt(control_sigma) * eps).data
         prob = normal_torch(control_choice, control_mean, control_sigma)
         log_prob = prob.log()
@@ -41,8 +41,7 @@ def select_action(control_mean, control_sigma, train=True):
 
 
 def pretraining(policy, fixed_actions, params, runs, pert_size,
-                timesteps, ti, tf, dtime, initial_state,
-                epochs=100):
+                timesteps, ti, tf, dtime, initial_state, learning_rate, epochs):
     '''Trains parametric policy model to resemble desired starting function.'''
 
     # lists to be filled
@@ -72,7 +71,7 @@ def pretraining(policy, fixed_actions, params, runs, pert_size,
 
     # training parameters
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(policy.parameters(), lr=1e-2)
+    optimizer = optim.Adam(policy.parameters(), lr=learning_rate)
     # optimizer = torch.optim.LBFGS(policy.parameters(), history_size=10000)
 
     for epoch in range(epochs):
@@ -108,7 +107,7 @@ def compute_run(policy, initial_state, params, log_probs,
     for step in range(timesteps):
         controls = policy(initial_state_P)
         if plot:
-            action = select_action(controls[0], std_sqr, train=False)
+            action = select_action(controls, std_sqr, train=False)
         else:
             action, log_prob_a, entropy = select_action(controls[0], std_sqr, train=True)
         control = {'U': np.float64(action)}
