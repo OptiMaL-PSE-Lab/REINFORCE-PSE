@@ -34,7 +34,7 @@ def select_action(control_mean, control_sigma, train=True):
         prob = normal_torch(control_choice, control_mean, control_sigma)
         log_prob = prob.log()
         # entropy is to explore low likelihood places
-        entropy = -0.5 * (np.log(control_sigma + 2 * np.pi) + 1)
+        entropy = -0.5 * (np.log(control_sigma +  2 * np.pi) + 1)
         return control_choice, log_prob, entropy
     elif not train:
         return control_mean
@@ -45,8 +45,8 @@ def pretraining(policy, fixed_actions, params, runs, pert_size,
     '''Trains parametric policy model to resemble desired starting function.'''
 
     # lists to be filled
-    state_range = [[(None, None, None) for step in range(timesteps)] for run in range(runs)]
-    control_range = [[None for step in range(timesteps)] for run in range(runs)]
+    state_runs =   [[None for step in range(timesteps)] for run in range(runs)]
+    control_runs = [[None for step in range(timesteps)] for run in range(runs)]
 
     for run in range(runs):
         t = ti  # define initial time at each episode
@@ -59,33 +59,33 @@ def pretraining(policy, fixed_actions, params, runs, pert_size,
 
             time_left = tf - t
             state = (y1, y2, time_left) # add current time to state
-            state_range[run][step] = state
-            control_range[run][step] = np.float64(action)
+            state_runs[run][step] = Tensor(state)
+            control_runs[run][step] = Tensor([action])
 
             t = t + dtime  # calculate next time
-
-    # setting data for training
-    # passing data as torch vectors
-    tensor_states = [Tensor(state) for state in state_range]
-    tensor_controls = [Tensor(control) for control in control_range]
 
     # training parameters
     criterion = nn.MSELoss()
     optimizer = optim.Adam(policy.parameters(), lr=learning_rate)
     # optimizer = torch.optim.LBFGS(policy.parameters(), history_size=10000)
 
-    for epoch in range(epochs):
-        optimizer.zero_grad()
-        loss = 0
+    for epoch in range(epochs): # TODO: merge this loop with first one.
         for run in range(runs):
-            for state, control in zip(tensor_states[run], tensor_controls[run]):
-                output = policy(state)
-                loss += criterion(output, control)
-        print("epoch: %d, loss: %1.3f" % (epoch + 1, loss.item()))
-        loss.backward()
-        optimizer.step()
+            optimizer.zero_grad()
+            policy_choices = []
+            for state in state_runs[run]:
+                choice = policy(state)
+                policy_choices.append(choice)
+            loss = criterion(
+                torch.stack(policy_choices).squeeze(),
+                torch.stack(control_runs[run]).squeeze()
+                )
+            loss.backward()
+            optimizer.step()
 
-    return state_range, control_range
+        print("epoch:", epoch, "loss:", loss.item())
+
+    return state_runs, control_runs
 
 def compute_run(policy, initial_state, params, log_probs,
                 dtime, timesteps, ti, tf, std_sqr, epi_n,

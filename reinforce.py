@@ -12,7 +12,6 @@ from utilities import pretraining, compute_run
 np.random.seed(seed=666)
 torch.manual_seed(666)
 
-
 # problem parameters
 episode_n = 100000
 record_n = 1000
@@ -27,7 +26,7 @@ t_steps = int((tf - ti) / dtime)  # number of steps per episode
 params = {'a': 0.5, 'b': 1}
 
 # define policy network and other learning/reporting parameters
-hidden_layers_size = 6
+hidden_layers_size = 15
 input_size = 3
 output_size = 1
 policy = PolicyNetwork(hidden_layers_size, input_size, output_size)
@@ -48,7 +47,7 @@ initial_state = np.array([1, 0])
 state_range_PT, control_range_PT = pretraining(
     policy, inputs_PT, params, runs_PT, pert_size,
     t_steps, ti, tf, dtime, initial_state,
-    learning_rate=1e-2, epochs=10
+    learning_rate=1e-2, epochs=100
     )
 first_run_states = state_range_PT[0]
 first_run_control = control_range_PT[0]
