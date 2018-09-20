@@ -40,52 +40,46 @@ def select_action(control_mean, control_sigma, train=True):
         return control_mean
 
 
-def pretraining(policy, fixed_actions, params, runs, pert_size,
-                timesteps, ti, tf, dtime, initial_state, learning_rate, epochs):
+def pretraining(policy, fixed_actions, ode_params, initial_state,
+                time_divisions, ti, tf, dtime, learning_rate, epochs, pert_size=0.1):
     '''Trains parametric policy model to resemble desired starting function.'''
-
-    # lists to be filled
-    state_runs =   [[None for step in range(timesteps)] for run in range(runs)]
-    control_runs = [[None for step in range(timesteps)] for run in range(runs)]
-
-    for run in range(runs):
-        t = ti  # define initial time at each episode
-        integrated_state = copy.deepcopy(initial_state)
-        for step in range(timesteps):
-            action = fixed_actions[step] * (1 + np.random.uniform(-pert_size, pert_size))
-            control = {'U': np.float64(action)}
-
-            y1, y2 = model_integration(params, integrated_state, control, dtime)
-
-            time_left = tf - t
-            state = (y1, y2, time_left) # add current time to state
-            state_runs[run][step] = Tensor(state)
-            control_runs[run][step] = Tensor([action])
-
-            t = t + dtime  # calculate next time
 
     # training parameters
     criterion = nn.MSELoss()
     optimizer = optim.Adam(policy.parameters(), lr=learning_rate)
     # optimizer = torch.optim.LBFGS(policy.parameters(), history_size=10000)
 
-    for epoch in range(epochs): # TODO: merge this loop with first one.
-        for run in range(runs):
-            optimizer.zero_grad()
-            policy_choices = []
-            for state in state_runs[run]:
-                choice = policy(state)
-                policy_choices.append(choice)
-            loss = criterion(
-                torch.stack(policy_choices).squeeze(),
-                torch.stack(control_runs[run]).squeeze()
-                )
-            loss.backward()
-            optimizer.step()
+    # lists to be filled
+    states =   [None for step in range(time_divisions)]
+    controls = [None for step in range(time_divisions)]
+
+    for epoch in range(epochs):
+        t = ti  # define initial time at each episode
+        integrated_state = copy.deepcopy(initial_state)
+        optimizer.zero_grad()
+        for division in range(time_divisions):
+
+            action = np.random.normal(loc=fixed_actions[division], scale=pert_size)
+            control_dict = {'U': np.float64(action)}
+
+            y1, y2 = model_integration(ode_params, integrated_state, control_dict, dtime)
+
+            time_left = tf - t
+            state = Tensor((y1, y2, time_left)) # add time left to state
+
+            states[division] = state
+            controls[division] = policy(state)
+
+            t = t + dtime  # calculate next time
+
+        input_controls = torch.stack(controls).squeeze()
+        loss = criterion(fixed_actions, input_controls)
+        loss.backward()
+        optimizer.step()
 
         print("epoch:", epoch, "loss:", loss.item())
 
-    return state_runs, control_runs
+    return states, controls # last samples for further comparison
 
 def compute_run(policy, initial_state, params, log_probs,
                 dtime, timesteps, ti, tf, std_sqr, epi_n,

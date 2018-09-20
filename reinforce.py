@@ -22,7 +22,7 @@ dtime = 0.1  # define time step
 iter_n = 0  # keep track of number of integration iterations
 ti = 0  # define initial time
 tf = 1  # define final time
-t_steps = int((tf - ti) / dtime)  # number of steps per episode
+t_steps = int((tf - ti) / dtime) # TODO: define t_steps as integer and calculate dtime afterwards
 params = {'a': 0.5, 'b': 1}
 
 # define policy network and other learning/reporting parameters
@@ -40,26 +40,21 @@ epi_n = -1  # because I sum one
 
 
 # Pre-training
-inputs_PT = [i_PT * 5.0 / t_steps for i_PT in range(t_steps)]
-runs_PT = 100
-pert_size = 0.1
+inputs_PT = torch.tensor([i_PT * 5.0 / t_steps for i_PT in range(t_steps)])
 initial_state = np.array([1, 0])
 state_range_PT, control_range_PT = pretraining(
-    policy, inputs_PT, params, runs_PT, pert_size,
-    t_steps, ti, tf, dtime, initial_state,
-    learning_rate=1e-2, epochs=100
+    policy, inputs_PT, params, initial_state,
+    t_steps, ti, tf, dtime, learning_rate=1e-2,
+    epochs=100, pert_size=0.1
     )
-first_run_states = state_range_PT[0]
-first_run_control = control_range_PT[0]
 
-y1_PT = [state[0] for state in first_run_states]
-y2_PT = [state[1] for state in first_run_states]
+y1_PT = [state[0] for state in state_range_PT]
+y2_PT = [state[1] for state in state_range_PT]
 pretrained_policy_control = [None for i_PT in range(t_steps)]
 for point in range(t_steps):
     # evaluate model with real data
-    state_PT = first_run_states[point]
-    inp_point = Tensor(state_PT)
-    output = policy(inp_point)
+    state_PT = state_range_PT[point]
+    output = policy(state_PT)
     output_np = output.data.numpy()
     # compile results
     pretrained_policy_control[point] = output_np[0]
@@ -81,7 +76,7 @@ plt.xlabel('time', fontsize=15)
 
 plt.subplot2grid((2, 4), (1, 2), colspan=2)
 plt.plot(pretrained_policy_control)
-plt.plot(first_run_control, 'ro')
+plt.plot(inputs_PT.numpy(), 'ro')
 plt.ylabel('u', rotation=360, fontsize=15)
 plt.xlabel('time', fontsize=15)
 plt.show()
