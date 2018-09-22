@@ -40,13 +40,14 @@ def select_action(control_mean, control_sigma, train=True):
         return control_mean
 
 
-def pretraining(policy, fixed_actions, ode_params, initial_state,
+def pretraining(policy, objective_actions, ode_params, initial_state,
                 time_divisions, ti, tf, dtime, learning_rate, epochs, pert_size=0.1):
     """Trains parametric policy model to resemble desired starting function."""
 
     # training parameters
     criterion = nn.MSELoss(reduction='elementwise_mean')
     optimizer = optim.Adam(policy.parameters(), lr=learning_rate)
+    objective_tensor = torch.tensor(objective_actions)
     # optimizer = torch.optim.LBFGS(policy.parameters(), history_size=10000)
 
     # lists to be filled
@@ -59,7 +60,7 @@ def pretraining(policy, fixed_actions, ode_params, initial_state,
         optimizer.zero_grad()
         for division in range(time_divisions):
 
-            action = np.random.normal(loc=fixed_actions[division], scale=pert_size)
+            action = np.random.normal(loc=objective_actions[division], scale=pert_size)
             control_dict = {'U': np.float64(action)}
 
             y1, y2 = model_integration(ode_params, integrated_state, control_dict, dtime)
@@ -73,11 +74,11 @@ def pretraining(policy, fixed_actions, ode_params, initial_state,
             t = t + dtime  # calculate next time
 
         input_controls = torch.stack(controls).squeeze()
-        loss = criterion(fixed_actions, input_controls)
+        loss = criterion(objective_tensor, input_controls)
         loss.backward()
         optimizer.step()
 
-        print("epoch:", epoch, "loss:", loss.item())
+        print("epoch:", epoch, "\t loss:", loss.item())
 
     return states, controls # last samples for further comparison
 

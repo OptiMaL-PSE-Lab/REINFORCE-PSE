@@ -8,6 +8,7 @@ import torch.optim as optim
 from torch import Tensor
 from policies import NeuralNetwork, LinearRegression
 from utilities import pretraining, compute_run
+from plots import plot_state_policy_evol
 
 np.random.seed(seed=666)
 torch.manual_seed(666)
@@ -23,20 +24,20 @@ params = {'a': 0.5, 'b': 1}
 hidden_layers_size = 15
 input_size = 3
 output_size = 1
-# policy = NeuralNetwork(hidden_layers_size, input_size, output_size)
-policy = LinearRegression(input_size, output_size)
+policy = NeuralNetwork(hidden_layers_size, input_size, output_size)
+# policy = LinearRegression(input_size, output_size)
 
-# Pre-training
-initial_objective = torch.tensor([i_PT * 5.0 / divisions for i_PT in range(divisions)])
+# pretrain policy with linear policy
+pretraining_objective = [div * 5.0 / divisions for div in range(divisions)]
 initial_state = np.array([1, 0])
 state_range_PT, control_range_PT = pretraining(
-    policy, initial_objective, params, initial_state, divisions, ti, tf, dtime,
-    learning_rate=1e-1, epochs=100, pert_size=0.1
+    policy, pretraining_objective, params, initial_state, divisions, ti, tf, dtime,
+    learning_rate=1e-4, epochs=100, pert_size=0.1
     )
 
 y1_PT = [state[0] for state in state_range_PT]
 y2_PT = [state[1] for state in state_range_PT]
-pretrained_policy_control = [None for i_PT in range(divisions)]
+pretrained_policy_control = [None for div in range(divisions)]
 
 # evaluate model with real data
 for point in range(divisions):
@@ -45,33 +46,10 @@ for point in range(divisions):
     output_np = output.data.numpy()
     pretrained_policy_control[point] = output_np[0]
 
-label_size = 10
-grid_shape = (3, 1) # (rows, columns)
-fig = plt.figure(0)
-
+# plot evolution of states and controls
 time_array = [ti + div * dtime for div in range(divisions)]
-
-plt.subplot2grid(grid_shape, (0, 0))
-plt.plot(time_array, y1_PT)
-plt.grid(axis='x') # , ls='--', lw=.5, c='k', alpha=.3
-plt.ylabel('y1', fontsize=label_size)
-plt.xlabel('time', fontsize=label_size)
-
-plt.subplot2grid(grid_shape, (1, 0))
-plt.plot(time_array, y2_PT)
-plt.grid(axis='x')
-plt.ylabel('y2', fontsize=label_size)
-plt.xlabel('time', fontsize=label_size)
-
-plt.subplot2grid(grid_shape, (2, 0))
-plt.plot(time_array, pretrained_policy_control)
-plt.plot(time_array, initial_objective.numpy(), 'ro')
-plt.grid(axis='x')
-plt.ylabel('u', fontsize=label_size)
-plt.xlabel('time', fontsize=label_size)
-
-# fig.suptitle("Hola")
-plt.show()
+plot_state_policy_evol(time_array, y1_PT, y2_PT, pretrained_policy_control,
+                       objective=pretraining_objective)
 
 # ---------------------------------------------------
 #                  MAIN LOOP start
@@ -80,7 +58,7 @@ plt.show()
 # problem parameters
 episode_n = 100000
 record_n = 1000
-std_sqr_red = (1, record_n)
+std_sqr_red = 1
 
 std_sqr = 1.0  # remember this is reduced first iter !!
 episode_update_n = 1  # every how many episodes I update !!
@@ -96,8 +74,8 @@ os.makedirs('figures', exist_ok=True)
 os.makedirs('serializations', exist_ok=True)
 for i_episode in range(episode_n):
     # COMPUTE EPISODE FOR LATER REINFORCEMENT LEARNING
-    if i_episode % std_sqr_red[1] == 0:  # diminish std to focus more on explotation
-        std_sqr = std_sqr * std_sqr_red[0]
+    if i_episode % record_n == 0:  # diminish std to focus more on explotation
+        std_sqr = std_sqr * std_sqr_red
     # run episode with network policy
     initial = np.array([1, 0])
     rewards_l[epi_n] = compute_run(
@@ -137,28 +115,15 @@ for i_episode in range(episode_n):
             plot=True
             )
 
-        print('i_episode = ', i_episode, '     current_reward = ', r_report)
+        print(f'i_episode = {i_episode}\tcurrent_reward = {r_report:0.3f})
         rewards_record.append(r_report)
         print('std_sqr = ', std_sqr)
-        plt.subplot2grid((2, 4), (0, 0), colspan=2)
-        plt.plot(y1_l)
-        plt.ylabel('y1 ', rotation=360, fontsize=15)
-        plt.xlabel('time', fontsize=15)
 
-        plt.subplot2grid((2, 4), (0, 2), colspan=2)
-        plt.plot(y2_l)
-        plt.ylabel('y2 ', rotation=360, fontsize=15)
-        plt.xlabel('time', fontsize=15)
-
-        plt.subplot2grid((2, 4), (1, 0), colspan=2)
-        plt.plot(U_l)
-        plt.ylabel('u', rotation=360, fontsize=15)
-        plt.xlabel('time', fontsize=15)
-        plt.savefig(
-            join('figures', 'profile_iter_a_' + str(i_episode) + '_REINFORCE_v3.png')
-            )
+        store_path = join('figures', f'profile_iter_a_{str(i_episode)}_REINFORCE_v3.png')
+        plot_state_policy_evol(time_array, y1_l, y2_l, U_l, show=False, store_path=store_path)
         plt.close()
-        torch.save(policy, join('serializations', 'ann_pretrain_10-6.pt'))
+
+        torch.save(policy, join('serializations', 'policy.pt'))
 
 print('finished learning')
 print('std_sqr = ', std_sqr)
