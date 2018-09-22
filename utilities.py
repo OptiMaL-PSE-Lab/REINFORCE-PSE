@@ -24,10 +24,10 @@ def normal_torch(act, mu, sigma_sq):
 # NOTE: not sure if this works for vectorial controls, check
 # NOTE: should return only one prob
 def select_action(control_mean, control_sigma, train=True):
-    '''
+    """
     In the constinous space, this means adding a random perturbation to our control
     np.random.normal: Draw random samples from a normal (Gaussian) distribution.
-    '''
+    """
     if train:  # want control only or also probabilities
         eps = torch.randn(1)
         control_choice = (control_mean + np.sqrt(control_sigma) * eps).data
@@ -42,10 +42,10 @@ def select_action(control_mean, control_sigma, train=True):
 
 def pretraining(policy, fixed_actions, ode_params, initial_state,
                 time_divisions, ti, tf, dtime, learning_rate, epochs, pert_size=0.1):
-    '''Trains parametric policy model to resemble desired starting function.'''
+    """Trains parametric policy model to resemble desired starting function."""
 
     # training parameters
-    criterion = nn.MSELoss()
+    criterion = nn.MSELoss(reduction='elementwise_mean')
     optimizer = optim.Adam(policy.parameters(), lr=learning_rate)
     # optimizer = torch.optim.LBFGS(policy.parameters(), history_size=10000)
 
@@ -81,10 +81,11 @@ def pretraining(policy, fixed_actions, ode_params, initial_state,
 
     return states, controls # last samples for further comparison
 
+
 def compute_run(policy, initial_state, params, log_probs,
                 dtime, timesteps, ti, tf, std_sqr, epi_n,
                 plot=False):
-    '''Compute a single run given a policy.'''
+    """Compute a single run given a policy."""
 
     if plot:
         U_CR = [None for i in range(timesteps)]

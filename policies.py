@@ -2,15 +2,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class PolicyNetwork(nn.Module):
-    '''
-    Policy-network
-    Our model will be a feed-forward neural network that takes in the states.
+class NeuralNetwork(nn.Module):
+    """
+    Feed-forward neural network that takes in the states.
     Outputs mean and std of an action (exploration-explotation).
-    '''
+    """
 
     def __init__(self, hidden_size, num_inputs, num_outputs):
-        super(PolicyNetwork, self).__init__()
+        super(NeuralNetwork, self).__init__()
         self.linear1 = nn.Linear(num_inputs, hidden_size, bias=True)
         self.linear2 = nn.Linear(hidden_size, hidden_size, bias=True)
         self.linear3 = nn.Linear(hidden_size, num_outputs, bias=True)
@@ -19,6 +18,18 @@ class PolicyNetwork(nn.Module):
         x = inputs
         x = F.relu(F.dropout(self.linear1(x), p=0.8, training=self.training))
         x = F.relu(F.dropout(self.linear2(x), p=0.8, training=self.training))
-        mu = F.relu6(self.linear3(x))
-        # mu = 6 * F.sigmoid(self.linear3(x))
+        # mu = F.relu6(self.linear3(x))
+        mu = 6 * F.sigmoid(self.linear3(x))
         return mu
+
+
+class LinearRegression(nn.Module):
+
+    def __init__(self, input_dim, output_dim):
+
+        super(LinearRegression, self).__init__()
+        self.linear = nn.Linear(input_dim, output_dim)
+
+    def forward(self, x):
+        out = self.linear(x)
+        return out

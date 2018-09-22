@@ -14,12 +14,13 @@ def state_model(t, state, f_args):
 
 
 def model_integration(params, initial_state, controls, time_interval):
-    '''
+    """
     params: dictionary of parameters passed to a model
     initial_state: numpy array of initial state
     controls: numpy array of control actions for this time step
     time_interval: duration of constant control time interval
-    '''
+    """
+
     # time_interval es el tiempo que se mantiene el control constante
     U = controls['U']
     a = params['a']
