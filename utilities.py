@@ -23,21 +23,18 @@ def normal_torch(act, mu, sigma_sq):
 
 # NOTE: not sure if this works for vectorial controls, check
 # NOTE: should return only one prob
-def select_action(control_mean, control_sigma, train=True):
+def select_action(control_mean, control_sigma):
     """
     In the constinous space, this means adding a random perturbation to our control
     np.random.normal: Draw random samples from a normal (Gaussian) distribution.
     """
-    if train:  # want control only or also probabilities
-        eps = torch.randn(1)
-        control_choice = (control_mean + np.sqrt(control_sigma) * eps).data
-        prob = normal_torch(control_choice, control_mean, control_sigma)
-        log_prob = prob.log()
-        # entropy is to explore low likelihood places
-        entropy = -0.5 * (np.log(control_sigma +  2 * np.pi) + 1)
-        return control_choice, log_prob, entropy
-    elif not train:
-        return control_mean
+    eps = torch.randn(1)
+    control_choice = (control_mean + np.sqrt(control_sigma) * eps).data
+    prob = normal_torch(control_choice, control_mean, control_sigma)
+    log_prob = prob.log()
+    # entropy is to explore low likelihood places
+    entropy = -0.5 * (np.log(control_sigma +  2 * np.pi) + 1)
+    return control_choice, log_prob, entropy
 
 
 def pretraining(policy, objective_actions, ode_params, initial_state,
@@ -80,48 +77,43 @@ def pretraining(policy, objective_actions, ode_params, initial_state,
 
         print("epoch:", epoch, "\t loss:", loss.item())
 
-    return states, controls # last samples for further comparison
+    return states, controls
 
 
-def compute_run(policy, initial_state, params, log_probs,
-                dtime, timesteps, ti, tf, std_sqr, epi_n,
-                plot=False):
+def compute_run(policy, initial_state, ode_params, log_probs, rewards, epi_n,
+                dtime, divisions, ti, tf, std_sqr, return_evolution=False):
     """Compute a single run given a policy."""
 
-    if plot:
-        U_CR = [None for i in range(timesteps)]
-        y1_CR = [None for i in range(timesteps)]
-        y2_CR = [None for i in range(timesteps)]
-        t_CR = [0 for i in range(timesteps)]
+    if return_evolution:
+        y1 = [None for i in range(divisions)]
+        y2 = [None for i in range(divisions)]
+        U = [None for i in range(divisions)]
 
     # define initial conditions
     t = ti
-    # define initial state for Policy calculation
-    initial_state_P = np.hstack([initial_state, tf - t])
-    initial_state_P = Tensor(initial_state_P)
+    initial_state_P = Tensor((*initial_state, tf - t))
 
-    for step in range(timesteps):
+    for step in range(divisions):
         controls = policy(initial_state_P)
-        if plot:
-            action = select_action(controls, std_sqr, train=False)
-        else:
-            action, log_prob_a, entropy = select_action(controls[0], std_sqr, train=True)
+        action, log_prob, _ = select_action(controls[0], std_sqr)
+
         control = {'U': np.float64(action)}
-        final_state = model_integration(params, initial_state, control, dtime)
-        if not plot:
-            log_probs[epi_n][step] = log_prob_a  # global var
+        final_state = model_integration(ode_params, initial_state, control, dtime)
+
+        if not return_evolution:
+            log_probs[epi_n][step] = log_prob
+
         initial_state = copy.deepcopy(final_state)
         t = t + dtime  # calculate next time
-        initial_state_P = np.hstack([initial_state, tf - t])
-        initial_state_P = Tensor(initial_state_P)
+        initial_state_P = Tensor((*initial_state, tf - t))
 
-        if plot:
-            y1_CR[step] = final_state[0]
-            y2_CR[step] = final_state[1]
-            t_CR[step] += t
-            U_CR[step] = np.float64(action)
-    reward_CR = final_state[1]
-    if plot:
-        return reward_CR, y1_CR, y2_CR, t_CR, U_CR
+        if return_evolution:
+            y1[step] = final_state[0]
+            y2[step] = final_state[1]
+            U[step] = np.float64(action)
+
+    if return_evolution:
+        return y1, y2, U
     else:
-        return reward_CR
+        rewards[epi_n] = final_state[1]
+        return None
