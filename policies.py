@@ -16,8 +16,8 @@ class NeuralNetwork(nn.Module):
 
     def forward(self, inputs):
         x = inputs
-        x = F.relu(F.dropout(self.linear1(x), p=0.8, training=self.training))
-        x = F.relu(F.dropout(self.linear2(x), p=0.8, training=self.training))
+        x = F.relu(self.linear1(x))
+        x = F.relu(self.linear2(x))
         # mu = F.relu6(self.linear3(x))
         mu = 6 * F.sigmoid(self.linear3(x))
         return mu

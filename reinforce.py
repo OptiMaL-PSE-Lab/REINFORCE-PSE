@@ -24,8 +24,8 @@ params = {'a': 0.5, 'b': 1}
 hidden_layers_size = 15
 input_size = 3
 output_size = 1
-# policy = NeuralNetwork(hidden_layers_size, input_size, output_size)
-policy = LinearRegression(input_size, output_size)
+policy = NeuralNetwork(hidden_layers_size, input_size, output_size)
+# policy = LinearRegression(input_size, output_size)
 
 # pretrain policy with linear policy
 pretraining_objective = [div * 5.0 / divisions for div in range(divisions)]
@@ -58,7 +58,7 @@ plot_state_policy_evol(time_array, y1_PT, y2_PT, pretrained_policy_control,
 # problem parameters
 episodes = 100000
 records = 1000
-std_sqr_red = 0.99
+std_sqr_red = 0.9
 
 std_sqr = 1.0  # remember this is reduced first iter !!
 episode_update_n = 1  # every how many episodes I update !!
