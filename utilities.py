@@ -1,39 +1,24 @@
+import copy
+import numpy as np
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch import Tensor
-
-import copy
-import numpy as np
+from torch.distributions import Normal
 
 from integrator import model_integration
 
 
-def normal_np(act, mu, sigma_sq):
-    a = np.exp(-(act - mu)**2 / (2. * sigma_sq**2))
-    b = 1. / np.sqrt((2. * sigma_sq**2 * np.pi))
-    return a * b
-
-
-def normal_torch(act, mu, sigma_sq):
-    a = (-1 * (Tensor(act) - mu).pow(2) / (2 * sigma_sq**2)).exp()
-    b = 1 / np.sqrt((2 * sigma_sq**2 * np.pi))
-    return a * b
-
-
-# NOTE: not sure if this works for vectorial controls, check
-# NOTE: should return only one prob
+# TODO: let it work with any given distribution
 def select_action(control_mean, control_sigma):
     """
-    In the constinous space, this means adding a random perturbation to our control
-    np.random.normal: Draw random samples from a normal (Gaussian) distribution.
+    In the continuous space, this means adding a random perturbation to our control
     """
-    eps = torch.randn(1)
-    control_choice = (control_mean + np.sqrt(control_sigma) * eps).data
-    prob = normal_torch(control_choice, control_mean, control_sigma)
-    log_prob = prob.log()
-    # entropy is to explore low likelihood places
-    entropy = -0.5 * (np.log(control_sigma +  2 * np.pi) + 1)
+    dist = Normal(control_mean, control_sigma)
+    control_choice = dist.sample()
+    log_prob = dist.log_prob(control_choice)
+    entropy = dist.entropy()
     return control_choice, log_prob, entropy
 
 
@@ -80,7 +65,7 @@ def pretraining(policy, objective_actions, ode_params, initial_state,
     return states, controls
 
 
-def compute_run(policy, initial_state, ode_params, log_probs, rewards, epi_n,
+def run_episode(policy, initial_state, ode_params, log_probs, rewards, epi_n,
                 dtime, divisions, ti, tf, std_sqr, return_evolution=False):
     """Compute a single run given a policy."""
 

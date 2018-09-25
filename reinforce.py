@@ -7,7 +7,7 @@ import torch
 import torch.optim as optim
 from torch import Tensor
 from policies import NeuralNetwork, LinearRegression
-from utilities import pretraining, compute_run
+from utilities import pretraining, run_episode
 from plots import plot_state_policy_evol
 
 np.random.seed(seed=666)
@@ -24,8 +24,8 @@ params = {'a': 0.5, 'b': 1}
 hidden_layers_size = 15
 input_size = 3
 output_size = 1
-policy = NeuralNetwork(hidden_layers_size, input_size, output_size)
-# policy = LinearRegression(input_size, output_size)
+# policy = NeuralNetwork(hidden_layers_size, input_size, output_size)
+policy = LinearRegression(input_size, output_size)
 
 # pretrain policy with linear policy
 pretraining_objective = [div * 5.0 / divisions for div in range(divisions)]
@@ -43,8 +43,7 @@ pretrained_policy_control = [None for div in range(divisions)]
 for point in range(divisions):
     state_PT = state_range_PT[point]
     output = policy(state_PT)
-    output_np = output.data.numpy()
-    pretrained_policy_control[point] = output_np[0]
+    pretrained_policy_control[point] = output.item()
 
 # plot evolution of states and controls
 time_array = [ti + div * dtime for div in range(divisions)]
@@ -58,12 +57,12 @@ plot_state_policy_evol(time_array, y1_PT, y2_PT, pretrained_policy_control,
 # problem parameters
 episodes = 100000
 records = 1000
-std_sqr_red = 0.9
+std_sqr_red = 0.999
 
 std_sqr = 1.0  # remember this is reduced first iter !!
-episode_update_n = 1  # every how many episodes I update !!
-rewards = [None for i in range(episode_update_n)]  # keep track of rewards per episode
-log_probs = [[None for j in range(divisions)] for i in range(episode_update_n)]
+episode_sample_size = 10  # every how many episodes I update !!
+rewards = [None for i in range(episode_sample_size)]  # keep track of rewards per episode
+log_probs = [[None for j in range(divisions)] for i in range(episode_sample_size)]
 epi_n = -1  # because I sum one
 rewards_record = []
 
@@ -81,7 +80,7 @@ for episode in range(episodes):
 
     # run episode with network policy
     initial = np.array([1, 0])
-    compute_run(
+    run_episode(
         policy, initial, params, log_probs, rewards, epi_n,
         dtime, divisions, ti, tf, std_sqr,
         return_evolution=False
@@ -89,18 +88,18 @@ for episode in range(episodes):
     epi_n = epi_n + 1
 
     # TRAIN CURRENT POLICY NETWORK USING COMPUTED TRAJECTORIES
-    if episode != 0 and episode % episode_update_n == 0:
-        gamma = 0.99
+    if episode != 0 and episode % episode_sample_size == 0:
+        gamma = 0.9
         loss = 0
-        for i_ep in range(episode_update_n):
-            R = torch.zeros(1)  # , 1)
+        for i_ep in range(episode_sample_size):
+            R = 0.0
             for i_j in reversed(range(divisions)):  # not sure why
                 R = gamma * R + rewards[i_ep]
-                loss = loss - (log_probs[i_ep][i_j] * R.expand_as(log_probs[i_ep][i_j])).sum()
+                loss = loss - log_probs[i_ep][i_j] * R
                 # A3C: We add entropy to the loss to encourage exploration
                 # https://github.com/dennybritz/reinforcement-learning/issues/34
 
-        loss = loss / episode_update_n
+        loss = loss / episode_sample_size
         optimizer.zero_grad()
         loss.backward()
         # utils.clip_grad_norm(policy.parameters(), 40)
@@ -108,12 +107,12 @@ for episode in range(episodes):
         optimizer.step()
         # define new rewards and log probs for next episodes to train (like a "zero_grad")
         epi_n = 0
-        rewards = [None for i in range(episode_update_n)]
-        log_probs = [[None for j in range(divisions)] for i in range(episode_update_n)]
+        rewards = [None for i in range(episode_sample_size)]
+        log_probs = [[None for j in range(divisions)] for i in range(episode_sample_size)]
         
     # PLOT CURRENT MEAN POLICY
     if episode % records == 0:
-        y1_l, y2_l, U_l = compute_run(
+        y1_l, y2_l, U_l = run_episode(
             policy, np.array([1, 0]), params, log_probs, rewards, epi_n,
             dtime, divisions, ti, tf, std_sqr,
             return_evolution=True
