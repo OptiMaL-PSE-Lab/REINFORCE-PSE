@@ -31,5 +31,6 @@ class LinearRegression(nn.Module):
         self.linear = nn.Linear(input_dim, output_dim)
 
     def forward(self, x):
-        out = self.linear(x)
+        x = self.linear(x)
+        out = 6 * F.sigmoid(x)
         return out
