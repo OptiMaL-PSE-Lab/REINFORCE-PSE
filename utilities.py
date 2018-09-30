@@ -1,6 +1,8 @@
+import os
+from os.path import join
 import copy
-import numpy as np
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -8,15 +10,15 @@ from torch import Tensor
 from torch.distributions import Normal
 
 from integrator import model_integration
+from plots import plot_state_policy_evol
 
 
-# TODO: let it work with any given distribution
 def select_action(control_mean, control_sigma):
     """
     In the continuous space, this means adding a random perturbation to our control
     """
     dist = Normal(control_mean, control_sigma)
-    control_choice = dist.sample()
+    control_choice = dist.rsample()
     log_prob = dist.log_prob(control_choice)
     entropy = dist.entropy()
     return control_choice, log_prob, entropy
@@ -45,10 +47,10 @@ def pretraining(policy, objective_actions, ode_params, initial_state,
             action = np.random.normal(loc=objective_actions[division], scale=pert_size)
             control_dict = {'U': np.float64(action)}
 
-            y1, y2 = model_integration(ode_params, integrated_state, control_dict, dtime)
+            integrated_state = model_integration(ode_params, integrated_state, control_dict, dtime)
 
             time_left = tf - t
-            state = Tensor((y1, y2, time_left)) # add time left to state
+            state = Tensor((*integrated_state, time_left)) # add time left to state
 
             states[division] = state
             controls[division] = policy(state)
@@ -65,40 +67,127 @@ def pretraining(policy, objective_actions, ode_params, initial_state,
     return states, controls
 
 
-def run_episode(policy, initial_state, ode_params, log_probs, rewards, epi_n,
-                dtime, divisions, ti, tf, std_sqr, return_evolution=False):
-    """Compute a single run given a policy."""
+def run_episode(policy, initial_state, ode_params, sigma,
+                dtime, divisions, ti, tf, track_evolution=False):
+    """
+    Compute a single run given a policy.
+    If track_evolution is True, return the evolution of y1, y2 and U,
+    otherwise return the collection of rewards and log_probabilities of each state.
+    """
 
-    if return_evolution:
-        y1 = [None for i in range(divisions)]
-        y2 = [None for i in range(divisions)]
-        U = [None for i in range(divisions)]
+    container = [None for i in range(divisions)]
+
+    if track_evolution:
+        y1 = container.copy()
+        y2 = container.copy()
+        U = container.copy()
+    else:
+        log_probs = container.copy()
 
     # define initial conditions
     t = ti
-    initial_state_P = Tensor((*initial_state, tf - t))
+    integrated_state = initial_state
 
     for step in range(divisions):
-        controls = policy(initial_state_P)
-        action, log_prob, _ = select_action(controls[0], std_sqr)
+
+        timed_state = Tensor((*integrated_state, tf - t))
+        controls = policy(timed_state)
+        action, log_prob, _ = select_action(controls, sigma)
 
         control = {'U': np.float64(action)}
-        final_state = model_integration(ode_params, initial_state, control, dtime)
+        integrated_state = model_integration(ode_params, integrated_state, control, dtime)
 
-        if not return_evolution:
-            log_probs[epi_n][step] = log_prob
-
-        initial_state = copy.deepcopy(final_state)
-        t = t + dtime  # calculate next time
-        initial_state_P = Tensor((*initial_state, tf - t))
-
-        if return_evolution:
-            y1[step] = final_state[0]
-            y2[step] = final_state[1]
+        if track_evolution:
+            y1[step] = integrated_state[0]
+            y2[step] = integrated_state[1]
             U[step] = np.float64(action)
+        else:
+            log_probs[step] = log_prob
 
-    if return_evolution:
+        t = t + dtime  # calculate next time
+        timed_state = Tensor((*integrated_state, tf - t))
+
+    if track_evolution:
         return y1, y2, U
     else:
-        rewards[epi_n] = final_state[1]
-        return None
+        reward = integrated_state[1]
+        return reward, log_probs
+
+def sample_episodes(policy, optimizer, sample_size, sigma,
+                    initial_state, ode_params, dtime, divisions, ti, tf,
+                    gamma = 1.0):
+    """
+    Executes n-episodes to get an average of the reward multiplied by summed log probabilities
+    that the current stochastic policy returns on each episode.
+    """
+    log_prob_R = 0.0
+    rewards = [None for _ in range(sample_size)]
+    summed_log_probs = [None for _ in range(sample_size)]
+
+    for epi in range(sample_size):
+        reward, log_probs = run_episode(
+            policy, initial_state, ode_params, sigma,
+            dtime, divisions, ti, tf
+        )
+        rewards[epi] = reward
+        summed_log_probs[epi] = sum(log_probs)
+    
+    mean_reward = sum(rewards) / sample_size
+    
+    for epi in reversed(range(sample_size)):
+        log_prob_R = log_prob_R - summed_log_probs[epi] * gamma * (rewards[epi] - mean_reward)
+
+    mean_log_prob_R = log_prob_R / sample_size
+    return mean_log_prob_R
+
+
+def training(policy, optimizer, epochs, epoch_episodes, sigma, sigma_reduction,
+             ode_params, dtime, divisions, ti, tf, gamma=1.0):
+    """Run the full episodic training schedule."""
+
+    # prepare directories for results
+    os.makedirs('figures', exist_ok=True)
+    os.makedirs('serializations', exist_ok=True)
+
+    rewards_record = []
+    initial_state = np.array([1, 0])
+    time_array = [ti + div * dtime for div in range(divisions)]
+
+    for epoch in range(epochs):
+
+        # train policy over n-sample episode's mean log probability
+        mean_log_prob = sample_episodes(
+            policy, optimizer, epoch_episodes, sigma,
+            initial_state, ode_params, dtime, divisions, ti, tf, gamma=gamma
+        )
+        optimizer.zero_grad()
+        mean_log_prob.backward()
+        optimizer.step()
+
+        # plot one episode of current state of policy
+        y1, y2, U = run_episode(
+            policy, initial_state, ode_params, sigma,
+            dtime, divisions, ti, tf, track_evolution=True
+            )
+
+        # store example episode reward
+        current_reward = y2[-1]
+        rewards_record.append(current_reward)
+
+        print('episode:', epoch)
+        print('std_dev = ', round(sigma, 3))
+        print('current_reward:', round(current_reward, 3))
+
+        # save example episode evolution plot
+        store_path = join('figures', f'profile_epoch_{epoch}_REINFORCE.png')
+        plot_state_policy_evol(
+            time_array, y1, y2, U, show=False, store_path=store_path
+            )
+
+        # reduce standard deviation
+        sigma = sigma * sigma_reduction
+
+    # store trained policy
+    torch.save(policy, join('serializations', 'policy.pt'))
+
+    return rewards_record

@@ -6,8 +6,9 @@ import matplotlib.pyplot as plt
 import torch
 import torch.optim as optim
 from torch import Tensor
+
 from policies import NeuralNetwork, LinearRegression
-from utilities import pretraining, run_episode
+from utilities import pretraining, run_episode, training
 from plots import plot_state_policy_evol
 
 np.random.seed(seed=666)
@@ -18,7 +19,9 @@ ti = 0  # define initial time
 tf = 1  # define final time
 divisions = 20
 dtime = (tf-ti)/divisions
-params = {'a': 0.5, 'b': 1}
+time_array = [ti + div * dtime for div in range(divisions)]
+
+ode_params = {'a': 0.5, 'b': 1}
 
 # define policy network and other learning/reporting parameters
 hidden_layers_size = 15
@@ -30,108 +33,38 @@ policy = LinearRegression(input_size, output_size)
 # pretrain policy with linear policy
 pretraining_objective = [div * 5.0 / divisions for div in range(divisions)]
 initial_state = np.array([1, 0])
+
 state_range_PT, control_range_PT = pretraining(
-    policy, pretraining_objective, params, initial_state, divisions, ti, tf, dtime,
-    learning_rate=1e-1, epochs=200, pert_size=0.0
+    policy, pretraining_objective, ode_params, initial_state, divisions, ti, tf, dtime,
+    learning_rate=1e-1, epochs=100, pert_size=0.0
     )
 
-y1_PT = [state[0] for state in state_range_PT]
-y2_PT = [state[1] for state in state_range_PT]
-pretrained_policy_control = [None for div in range(divisions)]
-
-# evaluate model with real data
-for point in range(divisions):
-    state_PT = state_range_PT[point]
-    output = policy(state_PT)
-    pretrained_policy_control[point] = output.item()
-
-# plot evolution of states and controls
-time_array = [ti + div * dtime for div in range(divisions)]
-plot_state_policy_evol(time_array, y1_PT, y2_PT, pretrained_policy_control,
-                       objective=pretraining_objective)
+y1_s, y2_s, U_s = run_episode(
+    policy, initial_state, ode_params, 0.0001,
+    dtime, divisions, ti, tf, track_evolution=True
+    )
+plot_state_policy_evol(time_array, y1_s, y2_s, U_s, objective=pretraining_objective)
 
 # ---------------------------------------------------
-#                  MAIN LOOP start
+#                  REINFORCE training
 # ---------------------------------------------------
 
 # problem parameters
-episodes = 100000
-records = 1000
-std_sqr_red = 0.999
+epochs = 1000
+epoch_episodes = 100
 
-std_sqr = 1.0  # remember this is reduced first iter !!
-episode_sample_size = 10  # every how many episodes I update !!
-rewards = [None for i in range(episode_sample_size)]  # keep track of rewards per episode
-log_probs = [[None for j in range(divisions)] for i in range(episode_sample_size)]
-epi_n = -1  # because I sum one
-rewards_record = []
+# NOTE: total_episodes = epochs * (epoch_episodes + 1)
 
-optimizer = optim.Adam(policy.parameters(), lr=1e-2)
+sigma = 1.0
+sigma_reduction = 0.9999
 
-# create folders to save pictures and model
-os.makedirs('figures', exist_ok=True)
-os.makedirs('serializations', exist_ok=True)
+optimizer = optim.Adam(policy.parameters(), lr=1e-1)
 
-for episode in range(episodes):
-    # COMPUTE EPISODE FOR LATER REINFORCEMENT LEARNING
+epoch_rewards = training(
+    policy, optimizer, epochs, epoch_episodes, sigma, sigma_reduction,
+    ode_params, dtime, divisions, ti, tf, gamma=1.0
+    )
 
-    if episode % records == 0:  # diminish std to focus more on explotation
-        std_sqr = std_sqr * std_sqr_red
-
-    # run episode with network policy
-    initial = np.array([1, 0])
-    run_episode(
-        policy, initial, params, log_probs, rewards, epi_n,
-        dtime, divisions, ti, tf, std_sqr,
-        return_evolution=False
-        )
-    epi_n = epi_n + 1
-
-    # TRAIN CURRENT POLICY NETWORK USING COMPUTED TRAJECTORIES
-    if episode != 0 and episode % episode_sample_size == 0:
-        gamma = 0.9
-        loss = 0
-        for i_ep in range(episode_sample_size):
-            R = 0.0
-            for i_j in reversed(range(divisions)):  # not sure why
-                R = gamma * R + rewards[i_ep]
-                loss = loss - log_probs[i_ep][i_j] * R
-                # A3C: We add entropy to the loss to encourage exploration
-                # https://github.com/dennybritz/reinforcement-learning/issues/34
-
-        loss = loss / episode_sample_size
-        optimizer.zero_grad()
-        loss.backward()
-        # utils.clip_grad_norm(policy.parameters(), 40)
-        # https://discuss.pytorch.org/t/about-torch-nn-utils-clip-grad-norm/13873/2
-        optimizer.step()
-        # define new rewards and log probs for next episodes to train (like a "zero_grad")
-        epi_n = 0
-        rewards = [None for i in range(episode_sample_size)]
-        log_probs = [[None for j in range(divisions)] for i in range(episode_sample_size)]
-        
-    # PLOT CURRENT MEAN POLICY
-    if episode % records == 0:
-        y1_l, y2_l, U_l = run_episode(
-            policy, np.array([1, 0]), params, log_probs, rewards, epi_n,
-            dtime, divisions, ti, tf, std_sqr,
-            return_evolution=True
-            )
-
-        print(f'episode = {episode}\tcurrent_reward = {y2_l[-1]:0.3f}')
-        rewards_record.append(y2_l[-1])
-        print('std_sqr = ', std_sqr)
-
-        store_path = join('figures', f'profile_episode_{str(episode)}_REINFORCE.png')
-        plot_state_policy_evol(
-            time_array, y1_l, y2_l, U_l, show=False, store_path=store_path
-            )
-        plt.close()
-
-        torch.save(policy, join('serializations', 'policy.pt'))
-
-print('finished learning')
-print('std_sqr = ', std_sqr)
-plt.plot(rewards_record)
+plt.plot(epoch_rewards)
 plt.ylabel('reward value')
 plt.show()

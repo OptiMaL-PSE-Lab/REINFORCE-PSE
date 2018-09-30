@@ -1,3 +1,4 @@
+from torch import sigmoid
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -14,7 +15,7 @@ class NeuralNetwork(nn.Module):
         x = inputs
         x = F.relu(self.linear1(x))
         x = F.relu(self.linear2(x))
-        mu = 5 * F.sigmoid(self.linear3(x))
+        mu = 5 * sigmoid(self.linear3(x))
         return mu
 
 
@@ -26,5 +27,5 @@ class LinearRegression(nn.Module):
 
     def forward(self, x):
         x = self.linear(x)
-        out = 5 * F.sigmoid(x)
+        out = 5 * sigmoid(x)
         return out

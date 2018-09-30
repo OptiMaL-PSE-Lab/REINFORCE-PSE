@@ -30,5 +30,6 @@ def plot_state_policy_evol(time_array, y1, y2, U, objective=None, fontsize=12,
 
     if store_path is not None:
         plt.savefig(store_path)
+        plt.close()
     if show:
         plt.show()
