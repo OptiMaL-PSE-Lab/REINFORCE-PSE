@@ -27,8 +27,8 @@ ode_params = {'a': 0.5, 'b': 1}
 hidden_layers_size = 15
 input_size = 3
 output_size = 1
-# policy = NeuralNetwork(hidden_layers_size, input_size, output_size)
-policy = LinearRegression(input_size, output_size)
+policy = NeuralNetwork(hidden_layers_size, input_size, output_size)
+# policy = LinearRegression(input_size, output_size)
 
 # pretrain policy with linear policy
 pretraining_objective = [div * 5.0 / divisions for div in range(divisions)]
@@ -62,7 +62,7 @@ optimizer = optim.Adam(policy.parameters(), lr=1e-1)
 
 epoch_rewards = training(
     policy, optimizer, epochs, epoch_episodes, sigma, sigma_reduction,
-    ode_params, dtime, divisions, ti, tf, gamma=1.0
+    ode_params, dtime, divisions, ti, tf
     )
 
 plt.plot(epoch_rewards)

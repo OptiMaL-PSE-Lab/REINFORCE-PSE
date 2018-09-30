@@ -12,6 +12,7 @@ from torch.distributions import Normal
 from integrator import model_integration
 from plots import plot_state_policy_evol
 
+eps = np.finfo(np.float32).eps.item()
 
 def select_action(control_mean, control_sigma):
     """
@@ -41,13 +42,7 @@ def pretraining(policy, objective_actions, ode_params, initial_state,
     for epoch in range(epochs):
         t = ti  # define initial time at each episode
         integrated_state = copy.deepcopy(initial_state)
-        optimizer.zero_grad()
         for division in range(time_divisions):
-
-            action = np.random.normal(loc=objective_actions[division], scale=pert_size)
-            control_dict = {'U': np.float64(action)}
-
-            integrated_state = model_integration(ode_params, integrated_state, control_dict, dtime)
 
             time_left = tf - t
             state = Tensor((*integrated_state, time_left)) # add time left to state
@@ -55,10 +50,17 @@ def pretraining(policy, objective_actions, ode_params, initial_state,
             states[division] = state
             controls[division] = policy(state)
 
-            t = t + dtime  # calculate next time
+            action = np.random.normal(loc=objective_actions[division], scale=pert_size)
+            control_dict = {'U': np.float64(action)}
+
+            integrated_state = model_integration(ode_params, integrated_state, control_dict, dtime)
+
+            t = t + dtime
 
         input_controls = torch.stack(controls).squeeze()
         loss = criterion(objective_tensor, input_controls)
+        
+        optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
@@ -114,8 +116,7 @@ def run_episode(policy, initial_state, ode_params, sigma,
         return reward, log_probs
 
 def sample_episodes(policy, optimizer, sample_size, sigma,
-                    initial_state, ode_params, dtime, divisions, ti, tf,
-                    gamma = 1.0):
+                    initial_state, ode_params, dtime, divisions, ti, tf):
     """
     Executes n-episodes to get an average of the reward multiplied by summed log probabilities
     that the current stochastic policy returns on each episode.
@@ -132,17 +133,19 @@ def sample_episodes(policy, optimizer, sample_size, sigma,
         rewards[epi] = reward
         summed_log_probs[epi] = sum(log_probs)
     
-    mean_reward = sum(rewards) / sample_size
+    reward_mean = np.mean(rewards)
+    reward_std = np.std(rewards)
     
     for epi in reversed(range(sample_size)):
-        log_prob_R = log_prob_R - summed_log_probs[epi] * gamma * (rewards[epi] - mean_reward)
+        baselined_reward = (rewards[epi] - reward_mean) / (reward_std + eps)
+        log_prob_R = log_prob_R - summed_log_probs[epi] * baselined_reward
 
     mean_log_prob_R = log_prob_R / sample_size
     return mean_log_prob_R
 
 
 def training(policy, optimizer, epochs, epoch_episodes, sigma, sigma_reduction,
-             ode_params, dtime, divisions, ti, tf, gamma=1.0):
+             ode_params, dtime, divisions, ti, tf):
     """Run the full episodic training schedule."""
 
     # prepare directories for results
@@ -158,7 +161,7 @@ def training(policy, optimizer, epochs, epoch_episodes, sigma, sigma_reduction,
         # train policy over n-sample episode's mean log probability
         mean_log_prob = sample_episodes(
             policy, optimizer, epoch_episodes, sigma,
-            initial_state, ode_params, dtime, divisions, ti, tf, gamma=gamma
+            initial_state, ode_params, dtime, divisions, ti, tf
         )
         optimizer.zero_grad()
         mean_log_prob.backward()
