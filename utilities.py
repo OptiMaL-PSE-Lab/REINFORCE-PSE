@@ -19,7 +19,7 @@ def select_action(control_mean, control_sigma):
     In the continuous space, this means adding a random perturbation to our control
     """
     dist = Normal(control_mean, control_sigma)
-    control_choice = dist.rsample()
+    control_choice = dist.sample()
     log_prob = dist.log_prob(control_choice)
     entropy = dist.entropy()
     return control_choice, log_prob, entropy
