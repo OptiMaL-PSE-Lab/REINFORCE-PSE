@@ -25,22 +25,20 @@ ode_params = {'a': 0.5, 'b': 1}
 
 # define policy network and other learning/reporting parameters
 hidden_layers_size = 15
-input_size = 3
-output_size = 1
-policy = NeuralNetwork(hidden_layers_size, input_size, output_size)
-# policy = LinearRegression(input_size, output_size)
+policy = NeuralNetwork(hidden_layers_size)
+# policy = LinearRegression()
 
 # pretrain policy with linear policy
 pretraining_objective = [div * 5.0 / divisions for div in range(divisions)]
 initial_state = np.array([1, 0])
 
-state_range_PT, control_range_PT = pretraining(
+pretraining(
     policy, pretraining_objective, ode_params, initial_state, divisions, ti, tf, dtime,
     learning_rate=1e-1, epochs=100, pert_size=0.0
     )
 
 y1_s, y2_s, U_s = run_episode(
-    policy, initial_state, ode_params, 0.0001,
+    policy, initial_state, ode_params, 
     dtime, divisions, ti, tf, track_evolution=True
     )
 plot_state_policy_evol(time_array, y1_s, y2_s, U_s, objective=pretraining_objective)
@@ -55,13 +53,10 @@ epoch_episodes = 200
 
 # NOTE: total_episodes = epochs * (epoch_episodes + 1)
 
-sigma = 5/4
-sigma_reduction = 0.999
-
-optimizer = optim.Adam(policy.parameters(), lr=1e-1)
+optimizer = optim.Adam(policy.parameters(), lr=1e-4)
 
 epoch_rewards = training(
-    policy, optimizer, epochs, epoch_episodes, sigma, sigma_reduction,
+    policy, optimizer, epochs, epoch_episodes,
     ode_params, dtime, divisions, ti, tf
     )
 

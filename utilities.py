@@ -32,43 +32,52 @@ def pretraining(policy, objective_actions, ode_params, initial_state,
     # training parameters
     criterion = nn.MSELoss(reduction='elementwise_mean')
     optimizer = optim.Adam(policy.parameters(), lr=learning_rate)
-    objective_tensor = torch.tensor(objective_actions)
+
+    objective_means = torch.tensor(objective_actions)
+    objective_stds = torch.tensor([pert_size for _ in range(time_divisions)])
 
     # lists to be filled
     states =   [None for step in range(time_divisions)]
-    controls = [None for step in range(time_divisions)]
+    predictions = [None for step in range(time_divisions)]
+    uncertainties = [None for step in range(time_divisions)]
 
     for epoch in range(epochs):
         t = ti  # define initial time at each episode
-        integrated_state = copy.deepcopy(initial_state)
+        integrated_state = initial_state
         for division in range(time_divisions):
 
             time_left = tf - t
             state = Tensor((*integrated_state, time_left)) # add time left to state
+            mean, std = policy(state)
 
             states[division] = state
-            controls[division] = policy(state)
+            predictions[division] = mean
+            uncertainties[division] = std
 
             action = np.random.normal(loc=objective_actions[division], scale=pert_size)
             control_dict = {'U': np.float64(action)}
 
-            integrated_state = model_integration(ode_params, integrated_state, control_dict, dtime)
+            integrated_state = model_integration(
+                ode_params, integrated_state, control_dict, dtime
+                )
 
             t = t + dtime
 
-        input_controls = torch.stack(controls).squeeze()
-        loss = criterion(objective_tensor, input_controls)
+        predicted_controls = torch.stack(predictions).squeeze()
+        predicted_uncertainty = torch.stack(uncertainties).squeeze()
 
+        loss = criterion(objective_means, predicted_controls) + \
+               criterion(objective_stds, predicted_uncertainty)
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
         print("epoch:", epoch, "\t loss:", loss.item())
 
-    return states, controls
+    return None
 
 
-def run_episode(policy, initial_state, ode_params, sigma,
+def run_episode(policy, initial_state, ode_params,
                 dtime, divisions, ti, tf, track_evolution=False):
     """
     Compute a single run given a policy.
@@ -92,8 +101,8 @@ def run_episode(policy, initial_state, ode_params, sigma,
     for step in range(divisions):
 
         timed_state = Tensor((*integrated_state, tf - t))
-        prediction = policy(timed_state)
-        action, log_prob, _ = select_action(prediction, sigma)
+        mean, std = policy(timed_state)
+        action, log_prob, _ = select_action(mean, std)
 
         control = {'U': np.float64(action)}
         integrated_state = model_integration(ode_params, integrated_state, control, dtime)
@@ -114,7 +123,7 @@ def run_episode(policy, initial_state, ode_params, sigma,
         reward = integrated_state[1]
         return reward, log_probs
 
-def sample_episodes(policy, optimizer, sample_size, sigma,
+def sample_episodes(policy, optimizer, sample_size,
                     initial_state, ode_params, dtime, divisions, ti, tf):
     """
     Executes n-episodes to get an average of the reward multiplied by summed log probabilities
@@ -126,7 +135,7 @@ def sample_episodes(policy, optimizer, sample_size, sigma,
 
     for epi in range(sample_size):
         reward, log_probs = run_episode(
-            policy, initial_state, ode_params, sigma,
+            policy, initial_state, ode_params,
             dtime, divisions, ti, tf
         )
         rewards[epi] = reward
@@ -144,7 +153,7 @@ def sample_episodes(policy, optimizer, sample_size, sigma,
     return mean_log_prob_R, reward_mean, reward_std
 
 
-def training(policy, optimizer, epochs, epoch_episodes, sigma, sigma_reduction,
+def training(policy, optimizer, epochs, epoch_episodes,
              ode_params, dtime, divisions, ti, tf):
     """Run the full episodic training schedule."""
 
@@ -161,7 +170,7 @@ def training(policy, optimizer, epochs, epoch_episodes, sigma, sigma_reduction,
 
         # train policy over n-sample episode's mean log probability
         mean_log_prob, reward_mean, reward_std = sample_episodes(
-            policy, optimizer, epoch_episodes, sigma,
+            policy, optimizer, epoch_episodes,
             initial_state, ode_params, dtime, divisions, ti, tf
         )
         optimizer.zero_grad()
@@ -173,22 +182,18 @@ def training(policy, optimizer, epochs, epoch_episodes, sigma, sigma_reduction,
         rewards_std_record.append(reward_std)
 
         print('episode:', epoch)
-        print('std_dev = ', round(sigma, 3))
         print(f'current_reward: {reward_mean:.3} +- {reward_std:.2}')
 
         # save example episode evolution plot
         store_path = join('figures', f'profile_epoch_{epoch}_REINFORCE.png')
 
         y1, y2, U = run_episode(
-            policy, initial_state, ode_params, sigma,
+            policy, initial_state, ode_params,
             dtime, divisions, ti, tf, track_evolution=True
             )
         plot_state_policy_evol(
             time_array, y1, y2, U, show=False, store_path=store_path
             )
-
-        # reduce standard deviation
-        sigma = sigma * sigma_reduction
 
     # store trained policy
     torch.save(policy, join('serializations', 'policy.pt'))
