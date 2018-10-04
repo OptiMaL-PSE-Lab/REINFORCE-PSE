@@ -56,9 +56,9 @@ epoch_episodes = 100
 # NOTE: total_episodes = epochs * (epoch_episodes + 1)
 
 sigma = 1.0
-sigma_reduction = 0.9999
+sigma_reduction = 0.99
 
-optimizer = optim.Adam(policy.parameters(), lr=1e-1)
+optimizer = optim.Adam(policy.parameters(), lr=1e-4)
 
 epoch_rewards = training(
     policy, optimizer, epochs, epoch_episodes, sigma, sigma_reduction,

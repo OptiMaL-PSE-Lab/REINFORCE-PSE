@@ -33,7 +33,6 @@ def pretraining(policy, objective_actions, ode_params, initial_state,
     criterion = nn.MSELoss(reduction='elementwise_mean')
     optimizer = optim.Adam(policy.parameters(), lr=learning_rate)
     objective_tensor = torch.tensor(objective_actions)
-    # optimizer = torch.optim.LBFGS(policy.parameters(), history_size=10000)
 
     # lists to be filled
     states =   [None for step in range(time_divisions)]
@@ -59,7 +58,7 @@ def pretraining(policy, objective_actions, ode_params, initial_state,
 
         input_controls = torch.stack(controls).squeeze()
         loss = criterion(objective_tensor, input_controls)
-        
+
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -93,8 +92,8 @@ def run_episode(policy, initial_state, ode_params, sigma,
     for step in range(divisions):
 
         timed_state = Tensor((*integrated_state, tf - t))
-        controls = policy(timed_state)
-        action, log_prob, _ = select_action(controls, sigma)
+        prediction = policy(timed_state)
+        action, log_prob, _ = select_action(prediction, sigma)
 
         control = {'U': np.float64(action)}
         integrated_state = model_integration(ode_params, integrated_state, control, dtime)
@@ -132,16 +131,17 @@ def sample_episodes(policy, optimizer, sample_size, sigma,
         )
         rewards[epi] = reward
         summed_log_probs[epi] = sum(log_probs)
-    
+
     reward_mean = np.mean(rewards)
     reward_std = np.std(rewards)
-    
+
     for epi in reversed(range(sample_size)):
-        baselined_reward = (rewards[epi] - reward_mean) / (reward_std + eps)
+        baselined_reward = reward_mean
+        # baselined_reward = (rewards[epi] - reward_mean) / (reward_std + eps)
         log_prob_R = log_prob_R - summed_log_probs[epi] * baselined_reward
 
     mean_log_prob_R = log_prob_R / sample_size
-    return mean_log_prob_R
+    return mean_log_prob_R, reward_mean, reward_std
 
 
 def training(policy, optimizer, epochs, epoch_episodes, sigma, sigma_reduction,
@@ -153,13 +153,14 @@ def training(policy, optimizer, epochs, epoch_episodes, sigma, sigma_reduction,
     os.makedirs('serializations', exist_ok=True)
 
     rewards_record = []
+    rewards_std_record = []
     initial_state = np.array([1, 0])
     time_array = [ti + div * dtime for div in range(divisions)]
 
     for epoch in range(epochs):
 
         # train policy over n-sample episode's mean log probability
-        mean_log_prob = sample_episodes(
+        mean_log_prob, reward_mean, reward_std = sample_episodes(
             policy, optimizer, epoch_episodes, sigma,
             initial_state, ode_params, dtime, divisions, ti, tf
         )
@@ -167,22 +168,21 @@ def training(policy, optimizer, epochs, epoch_episodes, sigma, sigma_reduction,
         mean_log_prob.backward()
         optimizer.step()
 
-        # plot one episode of current state of policy
+        # store example episode reward
+        rewards_record.append(reward_mean)
+        rewards_std_record.append(reward_std)
+
+        print('episode:', epoch)
+        print('std_dev = ', round(sigma, 3))
+        print(f'current_reward: {reward_mean:.3} +- {reward_std:.2}')
+
+        # save example episode evolution plot
+        store_path = join('figures', f'profile_epoch_{epoch}_REINFORCE.png')
+
         y1, y2, U = run_episode(
             policy, initial_state, ode_params, sigma,
             dtime, divisions, ti, tf, track_evolution=True
             )
-
-        # store example episode reward
-        current_reward = y2[-1]
-        rewards_record.append(current_reward)
-
-        print('episode:', epoch)
-        print('std_dev = ', round(sigma, 3))
-        print('current_reward:', round(current_reward, 3))
-
-        # save example episode evolution plot
-        store_path = join('figures', f'profile_epoch_{epoch}_REINFORCE.png')
         plot_state_policy_evol(
             time_array, y1, y2, U, show=False, store_path=store_path
             )
