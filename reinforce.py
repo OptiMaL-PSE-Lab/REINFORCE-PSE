@@ -50,15 +50,15 @@ plot_state_policy_evol(time_array, y1_s, y2_s, U_s, objective=pretraining_object
 # ---------------------------------------------------
 
 # problem parameters
-epochs = 1000
-epoch_episodes = 100
+epochs = 500
+epoch_episodes = 200
 
 # NOTE: total_episodes = epochs * (epoch_episodes + 1)
 
-sigma = 1.0
-sigma_reduction = 0.99
+sigma = 5/4
+sigma_reduction = 0.999
 
-optimizer = optim.Adam(policy.parameters(), lr=1e-4)
+optimizer = optim.Adam(policy.parameters(), lr=1e-1)
 
 epoch_rewards = training(
     policy, optimizer, epochs, epoch_episodes, sigma, sigma_reduction,
