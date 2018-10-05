@@ -167,7 +167,7 @@ def training(policy, optimizer, epochs, epoch_episodes,
     initial_state = np.array([1, 0])
     time_array = [ti + div * dtime for div in range(divisions)]
 
-    print(f"Training for {epochs} iterations of {epoch_episodes} samples of episodes each!")
+    print(f"Training for {epochs} iterations of {epoch_episodes} sampled episodes each!")
     for epoch in range(epochs):
 
         # train policy over n-sample episode's mean log probability
