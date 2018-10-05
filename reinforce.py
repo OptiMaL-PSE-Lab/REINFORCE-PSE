@@ -30,11 +30,13 @@ policy = NeuralNetwork(hidden_layers_size)
 
 # pretrain policy with linear policy
 pretraining_objective = [div * 5.0 / divisions for div in range(divisions)]
+desired_deviation = 2.0
 initial_state = np.array([1, 0])
 
 pretraining(
-    policy, pretraining_objective, ode_params, initial_state, divisions, ti, tf, dtime,
-    learning_rate=1e-1, epochs=100, pert_size=0.0
+    policy, pretraining_objective, desired_deviation, initial_state,
+    ode_params, divisions, ti, tf, dtime,
+    learning_rate=1e-1, epochs=100
     )
 
 y1_s, y2_s, U_s = run_episode(

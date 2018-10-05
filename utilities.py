@@ -25,16 +25,18 @@ def select_action(control_mean, control_sigma):
     return control_choice, log_prob, entropy
 
 
-def pretraining(policy, objective_actions, ode_params, initial_state,
-                time_divisions, ti, tf, dtime, learning_rate, epochs, pert_size=0.1):
+def pretraining(policy, objective_actions, objective_deviations, initial_state,
+                ode_params, time_divisions, ti, tf, dtime, learning_rate, epochs):
     """Trains parametric policy model to resemble desired starting function."""
+
+    assert objective_deviations > 0
 
     # training parameters
     criterion = nn.MSELoss(reduction='elementwise_mean')
     optimizer = optim.Adam(policy.parameters(), lr=learning_rate)
 
     objective_means = torch.tensor(objective_actions)
-    objective_stds = torch.tensor([pert_size for _ in range(time_divisions)])
+    objective_stds = torch.tensor([objective_deviations for _ in range(time_divisions)])
 
     # lists to be filled
     states =   [None for step in range(time_divisions)]
@@ -54,7 +56,7 @@ def pretraining(policy, objective_actions, ode_params, initial_state,
             predictions[division] = mean
             uncertainties[division] = std
 
-            action = np.random.normal(loc=objective_actions[division], scale=pert_size)
+            action = objective_actions[division]
             control_dict = {'U': np.float64(action)}
 
             integrated_state = model_integration(
