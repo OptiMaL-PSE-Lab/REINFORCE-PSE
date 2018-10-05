@@ -81,7 +81,7 @@ def pretraining(policy, objective_actions, objective_deviation, model_specs,
 
 def run_episode(policy, model_specs, track_evolution=False):
     """
-    Compute a single run given a policy.
+    Compute a single episode given a policy.
     If track_evolution is True, return the evolution of y1, y2 and U,
     otherwise return the collection of rewards and log_probabilities of each state.
     """
@@ -125,8 +125,9 @@ def run_episode(policy, model_specs, track_evolution=False):
 
 def sample_episodes(policy, optimizer, sample_size, model_specs):
     """
-    Executes n-episodes to get an average of the reward multiplied by summed log probabilities
-    that the current stochastic policy returns on each episode.
+    Executes n-episodes under the current stochastic policy,
+    gets an average of the reward and the summed log probabilities
+    and use them to form the baselined loss function to optimize.
     """
 
     rewards          = [None for _ in range(sample_size)]
@@ -174,7 +175,7 @@ def training(policy, optimizer, epochs, epoch_episodes, model_specs):
         rewards_record.append(reward_mean)
         rewards_std_record.append(reward_std)
 
-        print('episode:', epoch)
+        print('epoch:', epoch)
         print(f'mean reward: {reward_mean:.3} +- {reward_std:.2}')
 
         # save example episode evolution plot
