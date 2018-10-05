@@ -28,7 +28,7 @@ hidden_layers_size = 15
 policy = NeuralNetwork(hidden_layers_size)
 # policy = LinearRegression()
 
-# pretrain policy with linear policy
+# pretrain policy with linear increasing means and constant standard deviation
 pretraining_objective = [div * 5.0 / divisions for div in range(divisions)]
 desired_deviation = 2.0
 initial_state = np.array([1, 0])
@@ -49,11 +49,8 @@ plot_state_policy_evol(time_array, y1_s, y2_s, U_s, objective=pretraining_object
 #                  REINFORCE training
 # ---------------------------------------------------
 
-# problem parameters
-epochs = 500
+epochs = 50
 epoch_episodes = 1000
-
-# NOTE: total_episodes = epochs * (epoch_episodes + 1)
 
 optimizer = optim.Adam(policy.parameters(), lr=1e-1)
 

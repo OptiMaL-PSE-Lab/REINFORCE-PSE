@@ -147,8 +147,7 @@ def sample_episodes(policy, optimizer, sample_size,
     reward_std = np.std(rewards)
 
     for epi in reversed(range(sample_size)):
-        baselined_reward = reward_mean
-        # baselined_reward = (rewards[epi] - reward_mean) / (reward_std + eps)
+        baselined_reward = (rewards[epi] - reward_mean) / (reward_std + eps)
         log_prob_R = log_prob_R - summed_log_probs[epi] * baselined_reward
 
     mean_log_prob_R = log_prob_R / sample_size
@@ -168,6 +167,7 @@ def training(policy, optimizer, epochs, epoch_episodes,
     initial_state = np.array([1, 0])
     time_array = [ti + div * dtime for div in range(divisions)]
 
+    print(f"Training for {epochs} iterations of {epoch_episodes} samples of episodes each!")
     for epoch in range(epochs):
 
         # train policy over n-sample episode's mean log probability
@@ -184,7 +184,7 @@ def training(policy, optimizer, epochs, epoch_episodes,
         rewards_std_record.append(reward_std)
 
         print('episode:', epoch)
-        print(f'current_reward: {reward_mean:.3} +- {reward_std:.2}')
+        print(f'mean reward: {reward_mean:.3} +- {reward_std:.2}')
 
         # save example episode evolution plot
         store_path = join('figures', f'profile_epoch_{epoch}_REINFORCE.png')
