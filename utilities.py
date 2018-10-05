@@ -25,48 +25,48 @@ def select_action(control_mean, control_sigma):
     return control_choice, log_prob, entropy
 
 
-def pretraining(policy, objective_actions, objective_deviations, initial_state,
-                ode_params, time_divisions, ti, tf, dtime, learning_rate, epochs):
+def pretraining(policy, objective_actions, objective_deviation, model_specs,
+                learning_rate, epochs):
     """Trains parametric policy model to resemble desired starting function."""
 
-    assert objective_deviations > 0
+    assert objective_deviation > 0
 
     # training parameters
     criterion = nn.MSELoss(reduction='elementwise_mean')
     optimizer = optim.Adam(policy.parameters(), lr=learning_rate)
 
     objective_means = torch.tensor(objective_actions)
-    objective_stds = torch.tensor([objective_deviations for _ in range(time_divisions)])
+    objective_stds = torch.tensor(
+        [objective_deviation for _ in model_specs['time_points']]
+        )
 
-    # lists to be filled
-    states =   [None for step in range(time_divisions)]
-    predictions = [None for step in range(time_divisions)]
-    uncertainties = [None for step in range(time_divisions)]
+    empty_list = [None for _ in model_specs['time_points']]
+
+    states          = empty_list.copy()
+    predictions     = empty_list.copy()
+    uncertainties   = empty_list.copy()
 
     for epoch in range(epochs):
-        t = ti  # define initial time at each episode
-        integrated_state = initial_state
-        for division in range(time_divisions):
+        t = model_specs['ti']  # define initial time at each episode
+        integrated_state = model_specs['initial_state']
+        for ind, _ in enumerate(model_specs['time_points']):
 
-            time_left = tf - t
+            time_left = model_specs['tf'] - t
             state = Tensor((*integrated_state, time_left)) # add time left to state
             mean, std = policy(state)
 
-            states[division] = state
-            predictions[division] = mean
-            uncertainties[division] = std
+            states[ind]        = state
+            predictions[ind]   = mean
+            uncertainties[ind] = std
 
-            action = objective_actions[division]
-            control_dict = {'U': np.float64(action)}
+            model_specs['U'] = objective_actions[ind]
 
-            integrated_state = model_integration(
-                ode_params, integrated_state, control_dict, dtime
-                )
+            integrated_state = model_integration(integrated_state, model_specs)
 
-            t = t + dtime
+            t = t + model_specs['subinterval']
 
-        predicted_controls = torch.stack(predictions).squeeze()
-        predicted_uncertainty = torch.stack(uncertainties).squeeze()
+        predicted_controls      = torch.stack(predictions).squeeze()
+        predicted_uncertainty   = torch.stack(uncertainties).squeeze()
 
         loss = criterion(objective_means, predicted_controls) + \
                criterion(objective_stds, predicted_uncertainty)
@@ -79,15 +79,14 @@ def pretraining(policy, objective_actions, objective_deviations, initial_state,
     return None
 
 
-def run_episode(policy, initial_state, ode_params,
-                dtime, divisions, ti, tf, track_evolution=False):
+def run_episode(policy, model_specs, track_evolution=False):
     """
     Compute a single run given a policy.
     If track_evolution is True, return the evolution of y1, y2 and U,
     otherwise return the collection of rewards and log_probabilities of each state.
     """
 
-    container = [None for i in range(divisions)]
+    container = [None for i in model_specs['time_points']]
 
     if track_evolution:
         y1 = container.copy()
@@ -97,27 +96,26 @@ def run_episode(policy, initial_state, ode_params,
         log_probs = container.copy()
 
     # define initial conditions
-    t = ti
-    integrated_state = initial_state
+    t = model_specs['ti']
+    integrated_state = model_specs['initial_state']
 
-    for step in range(divisions):
+    for ind, _ in enumerate(model_specs['time_points']):
 
-        timed_state = Tensor((*integrated_state, tf - t))
+        timed_state = Tensor((*integrated_state, model_specs['tf'] - t))
         mean, std = policy(timed_state)
         action, log_prob, _ = select_action(mean, std)
 
-        control = {'U': np.float64(action)}
-        integrated_state = model_integration(ode_params, integrated_state, control, dtime)
+        model_specs['U'] = action
+        integrated_state = model_integration(integrated_state, model_specs)
 
         if track_evolution:
-            y1[step] = integrated_state[0]
-            y2[step] = integrated_state[1]
-            U[step] = np.float64(action)
+            y1[ind] = integrated_state[0]
+            y2[ind] = integrated_state[1]
+            U[ind]  = action
         else:
-            log_probs[step] = log_prob
+            log_probs[ind] = log_prob
 
-        t = t + dtime  # calculate next time
-        timed_state = Tensor((*integrated_state, tf - t))
+        t = t + model_specs['subinterval']  # calculate next time
 
     if track_evolution:
         return y1, y2, U
@@ -125,21 +123,18 @@ def run_episode(policy, initial_state, ode_params,
         reward = integrated_state[1]
         return reward, log_probs
 
-def sample_episodes(policy, optimizer, sample_size,
-                    initial_state, ode_params, dtime, divisions, ti, tf):
+def sample_episodes(policy, optimizer, sample_size, model_specs):
     """
     Executes n-episodes to get an average of the reward multiplied by summed log probabilities
     that the current stochastic policy returns on each episode.
     """
-    log_prob_R = 0.0
-    rewards = [None for _ in range(sample_size)]
+
+    rewards          = [None for _ in range(sample_size)]
     summed_log_probs = [None for _ in range(sample_size)]
 
+    log_prob_R = 0.0
     for epi in range(sample_size):
-        reward, log_probs = run_episode(
-            policy, initial_state, ode_params,
-            dtime, divisions, ti, tf
-        )
+        reward, log_probs = run_episode(policy, model_specs)
         rewards[epi] = reward
         summed_log_probs[epi] = sum(log_probs)
 
@@ -154,8 +149,7 @@ def sample_episodes(policy, optimizer, sample_size,
     return mean_log_prob_R, reward_mean, reward_std
 
 
-def training(policy, optimizer, epochs, epoch_episodes,
-             ode_params, dtime, divisions, ti, tf):
+def training(policy, optimizer, epochs, epoch_episodes, model_specs):
     """Run the full episodic training schedule."""
 
     # prepare directories for results
@@ -164,16 +158,13 @@ def training(policy, optimizer, epochs, epoch_episodes,
 
     rewards_record = []
     rewards_std_record = []
-    initial_state = np.array([1, 0])
-    time_array = [ti + div * dtime for div in range(divisions)]
 
     print(f"Training for {epochs} iterations of {epoch_episodes} sampled episodes each!")
     for epoch in range(epochs):
 
         # train policy over n-sample episode's mean log probability
         mean_log_prob, reward_mean, reward_std = sample_episodes(
-            policy, optimizer, epoch_episodes,
-            initial_state, ode_params, dtime, divisions, ti, tf
+            policy, optimizer, epoch_episodes, model_specs
         )
         optimizer.zero_grad()
         mean_log_prob.backward()
@@ -190,11 +181,10 @@ def training(policy, optimizer, epochs, epoch_episodes,
         store_path = join('figures', f'profile_epoch_{epoch}_REINFORCE.png')
 
         y1, y2, U = run_episode(
-            policy, initial_state, ode_params,
-            dtime, divisions, ti, tf, track_evolution=True
+            policy, model_specs, track_evolution=True
             )
         plot_state_policy_evol(
-            time_array, y1, y2, U, show=False, store_path=store_path
+            model_specs['time_points'], y1, y2, U, show=False, store_path=store_path
             )
 
     # store trained policy

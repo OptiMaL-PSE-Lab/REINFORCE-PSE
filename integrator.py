@@ -2,7 +2,7 @@ import numpy as np
 import scipy.integrate as scp
 
 
-def state_model(t, state, f_args):
+def ode_system(t, state, f_args):
 
     U, a, b = f_args
     y1, y2 = state
@@ -13,7 +13,7 @@ def state_model(t, state, f_args):
     return [dev_y1, dev_y2]
 
 
-def model_integration(params, initial_state, controls, time_interval):
+def model_integration(initial_state, parameters):
     """
     params: dictionary of parameters passed to a model
     initial_state: numpy array of initial state
@@ -22,13 +22,13 @@ def model_integration(params, initial_state, controls, time_interval):
     """
 
     # time_interval es el tiempo que se mantiene el control constante
-    U = controls['U']
-    a = params['a']
-    b = params['b']
+    U = parameters['U']
+    a = parameters['a']
+    b = parameters['b']
 
-    ode = scp.ode(state_model)
+    ode = scp.ode(ode_system)
     ode.set_integrator('dopri5')
     ode.set_f_params([U, a, b])
     ode.set_initial_value(initial_state)  # initial time is zero by default
-    final_state = ode.integrate(ode.t + time_interval)
+    final_state = ode.integrate(ode.t + parameters['subinterval'])
     return final_state
