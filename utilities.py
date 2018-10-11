@@ -7,23 +7,37 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch import Tensor
-from torch.distributions import Normal
+from torch.distributions import Normal, Beta, TransformedDistribution
+from torch.distributions.transforms import AffineTransform
 
 from integrator import model_integration
 from plots import plot_state_policy_evol
 
 eps = np.finfo(np.float32).eps.item()
 
-def select_action(control_mean, control_sigma):
+def select_action(mean, sigma, lower_limit=0.0, upper_limit=5.0):
     """
-    In the continuous space, this means adding a random perturbation to our control
+    Find the required concentration hyperparameters in the canonical Beta distribution
+    that will return the desired mean and deviation after the affine transformation.
     """
-    dist = Normal(control_mean, control_sigma)
-    control_choice = dist.sample()
-    log_prob = dist.log_prob(control_choice)
-    entropy = dist.entropy()
-    return control_choice, log_prob, entropy
+    width = upper_limit - lower_limit
+    assert width > 0
+    assert sigma < width**2 / 4
 
+    canonical_mean = (mean - lower_limit) / width
+    canonical_sigma = sigma / width**2
+
+    alpha_plus_beta = ( canonical_mean * (1 - canonical_mean) / canonical_sigma ** 2 ) - 1
+    alpha = canonical_mean * alpha_plus_beta
+    beta = (1 - canonical_mean) * alpha_plus_beta
+
+    canonical = Beta(alpha, beta)
+    transformation = AffineTransform(loc = lower_limit, scale = width)
+    transformed = TransformedDistribution(canonical, transformation)
+
+    action = transformed.sample()
+    log_prob = transformed.log_prob(action)
+    return action, log_prob
 
 def pretraining(policy, objective_actions, objective_deviation, model_specs,
                 learning_rate, epochs):
@@ -103,7 +117,7 @@ def run_episode(policy, model_specs, track_evolution=False):
 
         timed_state = Tensor((*integrated_state, model_specs['tf'] - t))
         mean, std = policy(timed_state)
-        action, log_prob, _ = select_action(mean, std)
+        action, log_prob = select_action(mean, std)
 
         model_specs['U'] = action
         integrated_state = model_integration(integrated_state, model_specs)
