@@ -52,12 +52,16 @@ plot_state_policy_evol(
 # ---------------------------------------------------
 
 epochs = 100
-epoch_episodes = 800
+episode_batch = 500
+learning_rate = 2e-2
 
-optimizer = optim.Adam(policy.parameters(), lr=5e-2)
+optimizer = optim.Adam(policy.parameters(), lr=learning_rate)
 
-epoch_rewards = training(policy, optimizer, epochs, epoch_episodes, model_specs)
+epoch_rewards = training(policy, optimizer, epochs, episode_batch, model_specs)
 
 plt.plot(epoch_rewards)
-plt.ylabel('reward value')
+plt.title(f'batch size:{episode_batch} lr:{learning_rate}')
+plt.xlabel('epoch')
+plt.ylabel('reward')
+plt.savefig(f'figures/reward_epoch{epochs}_batch{episode_batch}_lr{learning_rate}.png')
 plt.show()

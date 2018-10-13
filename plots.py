@@ -25,6 +25,7 @@ def plot_state_policy_evol(time_array, y1, y2, U, objective=None, fontsize=12,
     plt.grid(axis='x')
     plt.ylabel('u', fontsize=fontsize)
     plt.xlabel('time', fontsize=fontsize)
+    plt.ylim(0, 5)
 
     # fig.suptitle("test parameters")
 

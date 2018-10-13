@@ -164,7 +164,7 @@ def sample_episodes(policy, optimizer, sample_size, model_specs):
     return mean_log_prob_R, reward_mean, reward_std
 
 
-def training(policy, optimizer, epochs, epoch_episodes, model_specs):
+def training(policy, optimizer, epochs, episode_batch, model_specs):
     """Run the full episodic training schedule."""
 
     # prepare directories for results
@@ -174,12 +174,12 @@ def training(policy, optimizer, epochs, epoch_episodes, model_specs):
     rewards_record = []
     rewards_std_record = []
 
-    print(f"Training for {epochs} iterations of {epoch_episodes} sampled episodes each!")
+    print(f"Training for {epochs} iterations of {episode_batch} sampled episodes each!")
     for epoch in range(epochs):
 
         # train policy over n-sample episode's mean log probability
         mean_log_prob, reward_mean, reward_std = sample_episodes(
-            policy, optimizer, epoch_episodes, model_specs
+            policy, optimizer, episode_batch, model_specs
         )
         optimizer.zero_grad()
         mean_log_prob.backward()
