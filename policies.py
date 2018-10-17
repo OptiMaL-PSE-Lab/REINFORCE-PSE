@@ -1,3 +1,5 @@
+from math import sqrt
+
 from torch import sigmoid
 import torch.nn as nn
 import torch.nn.functional as F
@@ -5,11 +7,13 @@ import torch.nn.functional as F
 STATE_DIM = 3
 ACTION_DIM = 1
 
-
+# var(X) = 1/12 if X ~ Beta(1,1) ~ U(0,1)
+# max var(X) = 1/4 for X ~ Beta with support [0, 1]
+# max std(X) = 5/2 for X ~ Beta with support [0, 5]
 def mean_std(m, s):
     """Problem specific restrinctions on predicted mean and standard deviation."""
     mean = 5 * sigmoid(m)
-    std = 25/12 * sigmoid(s)
+    std = 2.5 * sigmoid(s)
     return mean, std
 
 

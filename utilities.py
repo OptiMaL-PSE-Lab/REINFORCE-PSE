@@ -22,7 +22,11 @@ def select_action(mean, sigma, lower_limit=0.0, upper_limit=5.0):
     """
     width = upper_limit - lower_limit
     assert width > 0
-    assert sigma < width**2 / 4
+    try:
+        assert sigma < eps + width / 2
+    except AssertionError:
+        print("sigma:", sigma.item())
+        raise
 
     canonical_mean = (mean - lower_limit) / width
     canonical_sigma = sigma / width**2
