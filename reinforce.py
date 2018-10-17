@@ -1,4 +1,5 @@
 from os.path import join
+from math import sqrt
 
 import matplotlib.pyplot as plt
 import torch
@@ -33,9 +34,9 @@ hidden_layers_size = 15
 policy = NeuralNetwork(hidden_layers_size)
 # policy = LinearRegression()
 
-# pretrain policy with linear increasing means and constant standard deviation
-pretraining_objective = [div * 5.0 / divisions for div in range(divisions)]
-desired_deviation = 2.0
+# pretrain policy with uninformative distribution over [0, 5]: X ~ U(0, 5)
+pretraining_objective = [2.5 for div in range(divisions)]
+desired_deviation = 2.5 / sqrt(3)
 
 pretraining(
     policy, pretraining_objective, desired_deviation, model_specs,
@@ -51,7 +52,7 @@ plot_state_policy_evol(
 #                  REINFORCE training
 # ---------------------------------------------------
 
-epochs = 100
+epochs = 150
 episode_batch = 500
 learning_rate = 2e-2
 
