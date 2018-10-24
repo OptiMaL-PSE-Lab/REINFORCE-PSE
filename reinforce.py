@@ -1,13 +1,12 @@
 from os.path import join
 from math import sqrt
 
-import matplotlib.pyplot as plt
 import torch
 import torch.optim as optim
+import matplotlib.pyplot as plt
 
 from policies import NeuralNetwork, LinearRegression
-from utilities import run_episode, pretraining, training
-from plots import plot_state_policy_evol
+from utilities import pretraining, training, plot_policy_sample
 
 torch.manual_seed(666)
 
@@ -43,10 +42,7 @@ pretraining(
     learning_rate=1e-1, epochs=100
     )
 
-y1_list, y2_list, U_list = run_episode(policy, model_specs, track_evolution=True)
-plot_state_policy_evol(
-    time_points, y1_list, y2_list, U_list, objective=pretraining_objective
-    )
+plot_policy_sample(policy, model_specs, objective=pretraining_objective)
 
 # ---------------------------------------------------
 #                  REINFORCE training

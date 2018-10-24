@@ -1,6 +1,6 @@
 from matplotlib import pyplot as plt
 
-def plot_state_policy_evol(time_array, y1, y2, U, objective=None, fontsize=12,
+def plot_episode_states(time_array, y1, y2, U, objective=None, fontsize=12,
                            show=True, store_path=None):
 
     grid_shape = (3,1)

@@ -2,6 +2,7 @@ import os
 from os.path import join
 import copy
 
+# import ray
 import numpy as np
 import torch
 import torch.nn as nn
@@ -11,8 +12,9 @@ from torch.distributions import Normal, Beta, TransformedDistribution
 from torch.distributions.transforms import AffineTransform
 
 from integrator import model_integration
-from plots import plot_state_policy_evol
+from plots import plot_episode_states
 
+# ray.init(num_cpus=3)
 eps = np.finfo(np.float32).eps.item()
 
 def select_action(mean, sigma, lower_limit=0.0, upper_limit=5.0):
@@ -92,22 +94,13 @@ def pretraining(policy, objective_actions, objective_deviation, model_specs,
 
     return None
 
-
-def run_episode(policy, model_specs, track_evolution=False):
-    """
-    Compute a single episode given a policy.
-    If track_evolution is True, return the evolution of y1, y2 and U,
-    otherwise return the collection of rewards and log_probabilities of each state.
-    """
+def plot_policy_sample(policy, model_specs, objective=None, show=True, store_path=None):
+    """Compute a single episode of the given policy and plot it."""
 
     container = [None for i in model_specs['time_points']]
-
-    if track_evolution:
-        y1 = container.copy()
-        y2 = container.copy()
-        U = container.copy()
-    else:
-        log_probs = container.copy()
+    y1 = container.copy()
+    y2 = container.copy()
+    U = container.copy()
 
     # define initial conditions
     t = model_specs['ti']
@@ -122,20 +115,41 @@ def run_episode(policy, model_specs, track_evolution=False):
         model_specs['U'] = action
         integrated_state = model_integration(integrated_state, model_specs)
 
-        if track_evolution:
-            y1[ind] = integrated_state[0]
-            y2[ind] = integrated_state[1]
-            U[ind]  = action
-        else:
-            log_probs[ind] = log_prob
+        y1[ind] = integrated_state[0]
+        y2[ind] = integrated_state[1]
+        U[ind]  = action
 
-        t = t + model_specs['subinterval']  # calculate next time
+        t = t + model_specs['subinterval']
 
-    if track_evolution:
-        return y1, y2, U
-    else:
-        reward = integrated_state[1]
-        return reward, log_probs
+    plot_episode_states(
+        model_specs['time_points'], y1, y2, U,
+        show=show, store_path=store_path, objective=objective
+        )
+
+# @ray.remote(num_return_vals=2)
+def run_episode(policy, model_specs):
+    """Compute a single episode given a policy and track useful quantities for learning."""
+
+    log_probs = [None for i in model_specs['time_points']]
+
+    # define initial conditions
+    t = model_specs['ti']
+    integrated_state = model_specs['initial_state']
+
+    for ind, _ in enumerate(model_specs['time_points']):
+
+        timed_state = Tensor((*integrated_state, model_specs['tf'] - t))
+        mean, std = policy(timed_state)
+        action, log_prob = select_action(mean, std)
+
+        model_specs['U'] = action
+        integrated_state = model_integration(integrated_state, model_specs)
+
+        log_probs[ind] = log_prob
+        t = t + model_specs['subinterval']
+
+    reward = integrated_state[1]
+    return reward, log_probs
 
 def sample_episodes(policy, optimizer, sample_size, model_specs):
     """
@@ -148,7 +162,9 @@ def sample_episodes(policy, optimizer, sample_size, model_specs):
     summed_log_probs = [None for _ in range(sample_size)]
 
     log_prob_R = 0.0
+    # samples = [run_episode.remote(policy, model_specs) for epi in range(sample_size)]
     for epi in range(sample_size):
+        # reward, log_probs = ray.get( samples[epi] )
         reward, log_probs = run_episode(policy, model_specs)
         rewards[epi] = reward
         summed_log_probs[epi] = sum(log_probs)
@@ -192,15 +208,9 @@ def training(policy, optimizer, epochs, episode_batch, model_specs):
         print('epoch:', epoch)
         print(f'mean reward: {reward_mean:.3} +- {reward_std:.2}')
 
-        # save example episode evolution plot
+        # save sampled episode plot
         store_path = join('figures', f'profile_epoch_{epoch}_REINFORCE.png')
-
-        y1, y2, U = run_episode(
-            policy, model_specs, track_evolution=True
-            )
-        plot_state_policy_evol(
-            model_specs['time_points'], y1, y2, U, show=False, store_path=store_path
-            )
+        plot_policy_sample(policy, model_specs, show=False, store_path=store_path)
 
     # store trained policy
     torch.save(policy, join('serializations', 'policy.pt'))
