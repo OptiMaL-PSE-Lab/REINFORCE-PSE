@@ -16,7 +16,7 @@ from plots import plot_episode_states
 
 eps = np.finfo(np.float32).eps.item()
 
-def select_action(mean, sigma, lower_limit=0.0, upper_limit=5.0):
+def forge_distribution(mean, sigma, lower_limit=0.0, upper_limit=5.0):
     """
     Find the required concentration hyperparameters in the canonical Beta distribution
     that will return the desired mean and deviation after the affine transformation.
@@ -36,9 +36,7 @@ def select_action(mean, sigma, lower_limit=0.0, upper_limit=5.0):
     transformation = AffineTransform(loc = lower_limit, scale = width)
     transformed = TransformedDistribution(canonical, transformation)
 
-    action = transformed.sample()
-    log_prob = transformed.log_prob(action)
-    return action, log_prob
+    return transformed
 
 def pretraining(policy, objective_actions, objective_deviation, model_specs,
                 learning_rate, epochs):
@@ -109,7 +107,8 @@ def plot_policy_sample(policy, model_specs, objective=None, show=True, store_pat
 
         timed_state = Tensor((*integrated_state, model_specs['tf'] - t))
         mean, std = policy(timed_state)
-        action, _ = select_action(mean, std)
+        dist = forge_distribution(mean, std)
+        action = dist.sample()
 
         model_specs['U'] = action
         integrated_state = model_integration(integrated_state, model_specs)
@@ -126,28 +125,42 @@ def plot_policy_sample(policy, model_specs, objective=None, show=True, store_pat
         )
 
 # @ray.remote
-def run_episode(policy, model_specs):
+def run_episode(policy, model_specs, policy_old=None, epsilon=0.2):
     """Compute a single episode given a policy and track useful quantities for learning."""
 
     # define initial conditions
     t = model_specs['ti']
     integrated_state = model_specs['initial_state']
 
-    sum_log_probs = 0.0
+    surrogate = 0.0
     for _ in model_specs['time_points']:
 
         timed_state = Tensor((*integrated_state, model_specs['tf'] - t))
         mean, std = policy(timed_state)
-        action, log_prob = select_action(mean, std)
+        dist = forge_distribution(mean, std)
+        action = dist.sample()
+        log_prob = dist.log_prob(action)
+
+        if policy_old is None:
+            surrogate = surrogate + log_prob
+        else:
+            mean_old, std_old = policy_old(timed_state)
+            dist_old = forge_distribution(mean_old, std_old)
+
+            # probability of same action under older distribution
+            log_prob_old = dist_old.log_prob(action).item() # avoid tracked gradients
+            prob_ratio = (log_prob - log_prob_old).exp()
+            clipped = prob_ratio.clamp(1-epsilon, i+epsilon)
+            surrogate = surrogate + torch.min(prob_ratio, clipped)
+            # NOTE: should be the min of the same factors multiplied by the advantage
+            #       function. This is correct if the advantage function is positive...
 
         model_specs['U'] = action
+        t = t + model_specs['subinterval']
         integrated_state = model_integration(integrated_state, model_specs)
 
-        sum_log_probs = sum_log_probs + log_prob
-        t = t + model_specs['subinterval']
-
     reward = integrated_state[1]
-    return reward, sum_log_probs
+    return reward, surrogate
 
 def sample_episodes(policy, sample_size, model_specs):
     """
@@ -156,8 +169,8 @@ def sample_episodes(policy, sample_size, model_specs):
     and use them to form the baselined loss function to optimize.
     """
 
-    rewards          = [None for _ in range(sample_size)]
-    summed_log_probs = [None for _ in range(sample_size)]
+    rewards = [None for _ in range(sample_size)]
+    surrogates = [None for _ in range(sample_size)]
 
     # NOTE: https://github.com/ray-project/ray/issues/2456
     # direct policy serialization loses the information of the tracked gradients...
@@ -165,17 +178,17 @@ def sample_episodes(policy, sample_size, model_specs):
 
     log_prob_R = 0.0
     for epi in range(sample_size):
-        # reward, sum_log_probs = ray.get(samples[epi])
-        reward, sum_log_probs = run_episode(policy, model_specs)
+        # reward, surrogate = ray.get(samples[epi])
+        reward, surrogate = run_episode(policy, model_specs)
         rewards[epi] = reward
-        summed_log_probs[epi] = sum_log_probs
+        surrogates[epi] = surrogate
 
     reward_mean = np.mean(rewards)
     reward_std = np.std(rewards)
 
     for epi in reversed(range(sample_size)):
         baselined_reward = (rewards[epi] - reward_mean) / (reward_std + eps)
-        log_prob_R = log_prob_R - summed_log_probs[epi] * baselined_reward
+        log_prob_R = log_prob_R - surrogates[epi] * baselined_reward
 
     mean_log_prob_R = log_prob_R / sample_size
     return mean_log_prob_R, reward_mean, reward_std
