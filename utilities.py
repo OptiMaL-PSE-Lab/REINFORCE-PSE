@@ -14,7 +14,6 @@ from torch.distributions.transforms import AffineTransform
 from integrator import model_integration
 from plots import plot_episode_states
 
-# ray.init(num_cpus=3)
 eps = np.finfo(np.float32).eps.item()
 
 def select_action(mean, sigma, lower_limit=0.0, upper_limit=5.0):
@@ -110,7 +109,7 @@ def plot_policy_sample(policy, model_specs, objective=None, show=True, store_pat
 
         timed_state = Tensor((*integrated_state, model_specs['tf'] - t))
         mean, std = policy(timed_state)
-        action, log_prob = select_action(mean, std)
+        action, _ = select_action(mean, std)
 
         model_specs['U'] = action
         integrated_state = model_integration(integrated_state, model_specs)
@@ -126,17 +125,16 @@ def plot_policy_sample(policy, model_specs, objective=None, show=True, store_pat
         show=show, store_path=store_path, objective=objective
         )
 
-# @ray.remote(num_return_vals=2)
+# @ray.remote
 def run_episode(policy, model_specs):
     """Compute a single episode given a policy and track useful quantities for learning."""
-
-    log_probs = [None for i in model_specs['time_points']]
 
     # define initial conditions
     t = model_specs['ti']
     integrated_state = model_specs['initial_state']
 
-    for ind, _ in enumerate(model_specs['time_points']):
+    sum_log_probs = 0.0
+    for _ in model_specs['time_points']:
 
         timed_state = Tensor((*integrated_state, model_specs['tf'] - t))
         mean, std = policy(timed_state)
@@ -145,13 +143,13 @@ def run_episode(policy, model_specs):
         model_specs['U'] = action
         integrated_state = model_integration(integrated_state, model_specs)
 
-        log_probs[ind] = log_prob
+        sum_log_probs = sum_log_probs + log_prob
         t = t + model_specs['subinterval']
 
     reward = integrated_state[1]
-    return reward, log_probs
+    return reward, sum_log_probs
 
-def sample_episodes(policy, optimizer, sample_size, model_specs):
+def sample_episodes(policy, sample_size, model_specs):
     """
     Executes n-episodes under the current stochastic policy,
     gets an average of the reward and the summed log probabilities
@@ -161,13 +159,16 @@ def sample_episodes(policy, optimizer, sample_size, model_specs):
     rewards          = [None for _ in range(sample_size)]
     summed_log_probs = [None for _ in range(sample_size)]
 
-    log_prob_R = 0.0
+    # NOTE: https://github.com/ray-project/ray/issues/2456
+    # direct policy serialization loses the information of the tracked gradients...
     # samples = [run_episode.remote(policy, model_specs) for epi in range(sample_size)]
+
+    log_prob_R = 0.0
     for epi in range(sample_size):
-        # reward, log_probs = ray.get( samples[epi] )
-        reward, log_probs = run_episode(policy, model_specs)
+        # reward, sum_log_probs = ray.get(samples[epi])
+        reward, sum_log_probs = run_episode(policy, model_specs)
         rewards[epi] = reward
-        summed_log_probs[epi] = sum(log_probs)
+        summed_log_probs[epi] = sum_log_probs
 
     reward_mean = np.mean(rewards)
     reward_std = np.std(rewards)
@@ -195,7 +196,7 @@ def training(policy, optimizer, epochs, episode_batch, model_specs):
 
         # train policy over n-sample episode's mean log probability
         mean_log_prob, reward_mean, reward_std = sample_episodes(
-            policy, optimizer, episode_batch, model_specs
+            policy, episode_batch, model_specs
         )
         optimizer.zero_grad()
         mean_log_prob.backward()

@@ -1,6 +1,7 @@
 from os.path import join
 from math import sqrt
 
+# import ray
 import torch
 import torch.optim as optim
 import matplotlib.pyplot as plt
@@ -8,6 +9,7 @@ import matplotlib.pyplot as plt
 from policies import NeuralNetwork, LinearRegression
 from utilities import pretraining, training, plot_policy_sample
 
+# ray.init()  # this needs to be run on main script... not modules
 torch.manual_seed(666)
 
 # specifications for dynamical system
