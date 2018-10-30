@@ -39,7 +39,7 @@ def forge_distribution(mean, sigma, lower_limit=0.0, upper_limit=5.0):
     return transformed
 
 def pretraining(policy, objective_actions, objective_deviation, model_specs,
-                learning_rate, epochs):
+                learning_rate, iterations):
     """Trains parametric policy model to resemble desired starting function."""
 
     assert objective_deviation > 0
@@ -59,7 +59,7 @@ def pretraining(policy, objective_actions, objective_deviation, model_specs,
     predictions     = empty_list.copy()
     uncertainties   = empty_list.copy()
 
-    for epoch in range(epochs):
+    for iteration in range(iterations):
         t = model_specs['ti']  # define initial time at each episode
         integrated_state = model_specs['initial_state']
         for ind, _ in enumerate(model_specs['time_points']):
@@ -87,7 +87,7 @@ def pretraining(policy, objective_actions, objective_deviation, model_specs,
         loss.backward()
         optimizer.step()
 
-        print("epoch:", epoch, "\t loss:", loss.item())
+        print("iteration:", iteration, "\t loss:", loss.item())
 
     return None
 
@@ -125,14 +125,39 @@ def plot_policy_sample(policy, model_specs, objective=None, show=True, store_pat
         )
 
 # @ray.remote
-def run_episode(policy, model_specs, policy_old=None, epsilon=0.2):
+def episode_reinforce(policy, model_specs):
     """Compute a single episode given a policy and track useful quantities for learning."""
 
     # define initial conditions
     t = model_specs['ti']
     integrated_state = model_specs['initial_state']
 
-    surrogate = 0.0
+    sum_log_probs = 0.0
+    for _ in model_specs['time_points']:
+
+        timed_state = Tensor((*integrated_state, model_specs['tf'] - t))
+        mean, std = policy(timed_state)
+        dist = forge_distribution(mean, std)
+        action = dist.sample()
+        log_prob = dist.log_prob(action)
+        sum_log_probs = sum_log_probs + log_prob
+
+        model_specs['U'] = action
+        t = t + model_specs['subinterval']
+        integrated_state = model_integration(integrated_state, model_specs)
+
+    reward = integrated_state[1]
+    return reward, sum_log_probs
+
+# @ray.remote
+def episode_ppo(policy, model_specs, policy_old=None, epsilon=0.2):
+    """Compute a single episode given a policy and track useful quantities for learning."""
+
+    # define initial conditions
+    t = model_specs['ti']
+    integrated_state = model_specs['initial_state']
+
+    prob_ratios = []
     for _ in model_specs['time_points']:
 
         timed_state = Tensor((*integrated_state, model_specs['tf'] - t))
@@ -141,61 +166,98 @@ def run_episode(policy, model_specs, policy_old=None, epsilon=0.2):
         action = dist.sample()
         log_prob = dist.log_prob(action)
 
-        if policy_old is None:
-            surrogate = surrogate + log_prob
+        # NOTE: probability of same action under older distribution
+        #       avoid tracked gradients in old policy
+        if policy_old is None or policy_old == policy:
+            log_prob_old = log_prob.item()
         else:
             mean_old, std_old = policy_old(timed_state)
             dist_old = forge_distribution(mean_old, std_old)
+            log_prob_old = dist_old.log_prob(action).item()
 
-            # probability of same action under older distribution
-            log_prob_old = dist_old.log_prob(action).item() # avoid tracked gradients
-            prob_ratio = (log_prob - log_prob_old).exp()
-            clipped = prob_ratio.clamp(1-epsilon, i+epsilon)
-            surrogate = surrogate + torch.min(prob_ratio, clipped)
-            # NOTE: should be the min of the same factors multiplied by the advantage
-            #       function. This is correct if the advantage function is positive...
+        prob_ratio = (log_prob - log_prob_old).exp()
+        prob_ratios.append(prob_ratio)
+        # clipped = prob_ratio.clamp(1-epsilon, i+epsilon)
+        # surrogate = surrogate + torch.min(prob_ratio, clipped)
 
         model_specs['U'] = action
         t = t + model_specs['subinterval']
         integrated_state = model_integration(integrated_state, model_specs)
 
     reward = integrated_state[1]
-    return reward, surrogate
+    return reward, prob_ratios
 
-def sample_episodes(policy, sample_size, model_specs):
+def sample_episodes_reinforce(policy, sample_size, model_specs):
     """
-    Executes n-episodes under the current stochastic policy,
+    Executes multiple episodes under the current stochastic policy,
     gets an average of the reward and the summed log probabilities
     and use them to form the baselined loss function to optimize.
     """
 
     rewards = [None for _ in range(sample_size)]
-    surrogates = [None for _ in range(sample_size)]
+    sum_log_probs = [None for _ in range(sample_size)]
 
     # NOTE: https://github.com/ray-project/ray/issues/2456
     # direct policy serialization loses the information of the tracked gradients...
     # samples = [run_episode.remote(policy, model_specs) for epi in range(sample_size)]
 
-    log_prob_R = 0.0
     for epi in range(sample_size):
-        # reward, surrogate = ray.get(samples[epi])
-        reward, surrogate = run_episode(policy, model_specs)
+        # reward, sum_log_prob = ray.get(samples[epi])
+        reward, sum_log_prob = episode_reinforce(policy, model_specs)
         rewards[epi] = reward
-        surrogates[epi] = surrogate
+        sum_log_probs[epi] = sum_log_prob
 
     reward_mean = np.mean(rewards)
     reward_std = np.std(rewards)
 
+    log_prob_R = 0.0
     for epi in reversed(range(sample_size)):
         baselined_reward = (rewards[epi] - reward_mean) / (reward_std + eps)
-        log_prob_R = log_prob_R - surrogates[epi] * baselined_reward
+        log_prob_R = log_prob_R - sum_log_probs[epi] * baselined_reward
 
     mean_log_prob_R = log_prob_R / sample_size
     return mean_log_prob_R, reward_mean, reward_std
 
+def sample_episodes_ppo(policy, sample_size, model_specs, policy_old=None, epsilon=0.2):
+    """
+    Executes multiple episodes under the current stochastic policy,
+    gets an average of the reward and the probabilities ratio between subsequent policies
+    and use them to form the surrogate loss function to optimize.
+    """
 
-def training(policy, optimizer, epochs, episode_batch, model_specs):
+    rewards = [None for _ in range(sample_size)]
+    prob_ratios = [None for _ in range(sample_size)]
+
+    for epi in range(sample_size):
+        reward, prob_ratios_episode = episode_ppo(
+            policy, model_specs, policy_old=policy_old, epsilon=epsilon
+            )
+        rewards[epi] = reward
+        prob_ratios[epi] = prob_ratios_episode
+
+    reward_mean = np.mean(rewards)
+    reward_std = np.std(rewards)
+
+    surrogate = 0.0
+    for epi in reversed(range(sample_size)):
+
+        # NOTE: this is the advantage function
+        baselined_reward = (rewards[epi] - reward_mean) / (reward_std + eps)
+
+        for prob_ratio in prob_ratios[epi]:
+            clipped = prob_ratio.clamp( 1-epsilon, 1+epsilon )
+            surrogate = surrogate - torch.min(
+                prob_ratio * baselined_reward,
+                clipped * baselined_reward
+            )
+
+    mean_surrogate = surrogate / sample_size
+    return mean_surrogate, reward_mean, reward_std
+
+def training(policy, optimizer, iterations, episode_batch, model_specs, method='reinforce', epochs=1):
     """Run the full episodic training schedule."""
+
+    assert method == 'reinforce' or method == 'ppo', "methods supported: reinforce and ppo"
 
     # prepare directories for results
     os.makedirs('figures', exist_ok=True)
@@ -204,29 +266,44 @@ def training(policy, optimizer, epochs, episode_batch, model_specs):
     rewards_record = []
     rewards_std_record = []
 
-    print(f"Training for {epochs} iterations of {episode_batch} sampled episodes each!")
-    for epoch in range(epochs):
+    print(f"Training for {iterations} iterations of {episode_batch} sampled episodes each!")
+    for iteration in range(iterations):
 
-        # train policy over n-sample episode's mean log probability
-        mean_log_prob, reward_mean, reward_std = sample_episodes(
-            policy, episode_batch, model_specs
-        )
-        optimizer.zero_grad()
-        mean_log_prob.backward()
-        optimizer.step()
+        if method == 'reinforce':
+            surrogate_mean, reward_mean, reward_std = sample_episodes_reinforce(
+                policy, episode_batch, model_specs
+            )
+        elif method == 'ppo':
+            if iteration == 0:
+                surrogate_mean, reward_mean, reward_std = sample_episodes_ppo(
+                    policy, episode_batch, model_specs
+                )
+            else:
+                surrogate_mean, reward_mean, reward_std = sample_episodes_ppo(
+                    policy, episode_batch, model_specs, policy_old=policy_old
+                )
 
-        # store example episode reward
+        # maximize expected surrogate function
+        if method == 'ppo':
+            policy_old = copy.deepcopy(policy)
+
+        for _ in range(epochs):
+            optimizer.zero_grad()
+            surrogate_mean.backward(retain_graph=True)
+            optimizer.step()
+
+        # store mean episode reward
         rewards_record.append(reward_mean)
         rewards_std_record.append(reward_std)
 
-        print('epoch:', epoch)
+        print('iteration:', iteration)
         print(f'mean reward: {reward_mean:.3} +- {reward_std:.2}')
 
         # save sampled episode plot
-        store_path = join('figures', f'profile_epoch_{epoch}_REINFORCE.png')
+        store_path = join('figures', f'profile_iteration_{iteration}_{method}.png')
         plot_policy_sample(policy, model_specs, show=False, store_path=store_path)
 
     # store trained policy
-    torch.save(policy, join('serializations', 'policy.pt'))
+    torch.save(policy, join('serializations', 'policy_reinforce.pt'))
 
     return rewards_record

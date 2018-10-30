@@ -36,12 +36,12 @@ policy = NeuralNetwork(hidden_layers_size)
 # policy = LinearRegression()
 
 # pretrain policy with uninformative distribution over [0, 5]: X ~ U(0, 5)
-pretraining_objective = [2.5 for div in range(divisions)]
+pretraining_objective = [div * 5 / divisions for div in range(divisions)]
 desired_deviation = 2.5 / sqrt(3)
 
 pretraining(
     policy, pretraining_objective, desired_deviation, model_specs,
-    learning_rate=1e-1, epochs=100
+    learning_rate=1e-1, iterations=100
     )
 
 plot_policy_sample(policy, model_specs, objective=pretraining_objective)
@@ -50,17 +50,21 @@ plot_policy_sample(policy, model_specs, objective=pretraining_objective)
 #                  REINFORCE training
 # ---------------------------------------------------
 
-epochs = 150
-episode_batch = 500
+iterations = 150
+episode_batch = 100
 learning_rate = 2e-2
 
+method = 'reinforce' # 'ppo'
+epochs = 1 # 3
 optimizer = optim.Adam(policy.parameters(), lr=learning_rate)
 
-epoch_rewards = training(policy, optimizer, epochs, episode_batch, model_specs)
+iteration_rewards = training(
+    policy, optimizer, iterations, episode_batch, model_specs, method=method, epochs=epochs
+    )
 
-plt.plot(epoch_rewards)
+plt.plot(iteration_rewards)
 plt.title(f'batch size:{episode_batch} lr:{learning_rate}')
-plt.xlabel('epoch')
+plt.xlabel('iteration')
 plt.ylabel('reward')
-plt.savefig(f'figures/reward_epoch{epochs}_batch{episode_batch}_lr{learning_rate}.png')
+plt.savefig(f'figures/reward_iteration{iterations}_batch{episode_batch}_lr{learning_rate}.png')
 plt.show()
