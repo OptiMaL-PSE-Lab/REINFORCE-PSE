@@ -52,10 +52,10 @@ plot_policy_sample(policy, model_specs, objective=pretraining_objective)
 
 iterations = 150
 episode_batch = 100
-learning_rate = 2e-2
+learning_rate = 5e-3
 
-method = 'reinforce' # 'ppo'
-epochs = 1 # 3
+method = 'reinforce' # 'reinforce' # 'ppo'
+epochs = 1 # 1 # 3
 optimizer = optim.Adam(policy.parameters(), lr=learning_rate)
 
 iteration_rewards = training(
