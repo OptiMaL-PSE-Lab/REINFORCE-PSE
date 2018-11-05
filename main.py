@@ -44,27 +44,28 @@ pretraining(
     learning_rate=1e-1, iterations=100
     )
 
-plot_policy_sample(policy, model_specs, objective=pretraining_objective)
+# plot_policy_sample(policy, model_specs, objective=pretraining_objective)
 
 # ---------------------------------------------------
 #                  REINFORCE training
 # ---------------------------------------------------
 
-iterations = 150
+iterations = 200
 episode_batch = 100
-learning_rate = 5e-3
+learning_rate = 1e-3
 
-method = 'reinforce' # 'reinforce' # 'ppo'
-epochs = 1 # 1 # 3
+method = 'ppo'
+epochs = 10
 optimizer = optim.Adam(policy.parameters(), lr=learning_rate)
 
 iteration_rewards = training(
-    policy, optimizer, iterations, episode_batch, model_specs, method=method, epochs=epochs
+    policy, optimizer, iterations, episode_batch, model_specs,
+    method=method, epochs=epochs, record_actions=True
     )
 
 plt.plot(iteration_rewards)
 plt.title(f'batch size:{episode_batch} lr:{learning_rate}')
 plt.xlabel('iteration')
 plt.ylabel('reward')
-plt.savefig(f'figures/reward_iteration{iterations}_batch{episode_batch}_lr{learning_rate}.png')
+plt.savefig(f'figures/reward_method{method}_iteration{iterations}_batch{episode_batch}_lr{learning_rate}.png')
 plt.show()

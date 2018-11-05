@@ -12,7 +12,7 @@ from torch.distributions import Normal, Beta, TransformedDistribution
 from torch.distributions.transforms import AffineTransform
 
 from integrator import model_integration
-from plots import plot_episode_states
+from plots import plot_episode_states, plot_sampled_actions
 
 eps = np.finfo(np.float32).eps.item()
 
@@ -125,7 +125,7 @@ def plot_policy_sample(policy, model_specs, objective=None, show=True, store_pat
         )
 
 # @ray.remote
-def episode_reinforce(policy, model_specs):
+def episode_reinforce(policy, model_specs, action_recorder=None):
     """Compute a single episode given a policy and track useful quantities for learning."""
 
     # define initial conditions
@@ -133,7 +133,7 @@ def episode_reinforce(policy, model_specs):
     integrated_state = model_specs['initial_state']
 
     sum_log_probs = 0.0
-    for _ in model_specs['time_points']:
+    for time_point in model_specs['time_points']:
 
         timed_state = Tensor((*integrated_state, model_specs['tf'] - t))
         mean, std = policy(timed_state)
@@ -146,11 +146,14 @@ def episode_reinforce(policy, model_specs):
         t = t + model_specs['subinterval']
         integrated_state = model_integration(integrated_state, model_specs)
 
+        if action_recorder is not None:
+            action_recorder[time_point].append(action.item())
+
     reward = integrated_state[1]
     return reward, sum_log_probs
 
 # @ray.remote
-def episode_ppo(policy, model_specs, policy_old=None, epsilon=0.2):
+def episode_ppo(policy, model_specs, policy_old=None, action_recorder=None):
     """Compute a single episode given a policy and track useful quantities for learning."""
 
     # define initial conditions
@@ -158,7 +161,7 @@ def episode_ppo(policy, model_specs, policy_old=None, epsilon=0.2):
     integrated_state = model_specs['initial_state']
 
     prob_ratios = []
-    for _ in model_specs['time_points']:
+    for time_point in model_specs['time_points']:
 
         timed_state = Tensor((*integrated_state, model_specs['tf'] - t))
         mean, std = policy(timed_state)
@@ -177,17 +180,18 @@ def episode_ppo(policy, model_specs, policy_old=None, epsilon=0.2):
 
         prob_ratio = (log_prob - log_prob_old).exp()
         prob_ratios.append(prob_ratio)
-        # clipped = prob_ratio.clamp(1-epsilon, i+epsilon)
-        # surrogate = surrogate + torch.min(prob_ratio, clipped)
 
         model_specs['U'] = action
         t = t + model_specs['subinterval']
         integrated_state = model_integration(integrated_state, model_specs)
 
+        if action_recorder is not None:
+            action_recorder[time_point].append(action.item())
+
     reward = integrated_state[1]
     return reward, prob_ratios
 
-def sample_episodes_reinforce(policy, sample_size, model_specs):
+def sample_episodes_reinforce(policy, sample_size, model_specs, action_recorder=None):
     """
     Executes multiple episodes under the current stochastic policy,
     gets an average of the reward and the summed log probabilities
@@ -203,7 +207,7 @@ def sample_episodes_reinforce(policy, sample_size, model_specs):
 
     for epi in range(sample_size):
         # reward, sum_log_prob = ray.get(samples[epi])
-        reward, sum_log_prob = episode_reinforce(policy, model_specs)
+        reward, sum_log_prob = episode_reinforce(policy, model_specs, action_recorder=action_recorder)
         rewards[epi] = reward
         sum_log_probs[epi] = sum_log_prob
 
@@ -218,7 +222,8 @@ def sample_episodes_reinforce(policy, sample_size, model_specs):
     mean_log_prob_R = log_prob_R / sample_size
     return mean_log_prob_R, reward_mean, reward_std
 
-def sample_episodes_ppo(policy, sample_size, model_specs, policy_old=None, epsilon=0.2):
+def sample_episodes_ppo(policy, sample_size, model_specs,
+                        policy_old=None, epsilon=0.3, action_recorder=None):
     """
     Executes multiple episodes under the current stochastic policy,
     gets an average of the reward and the probabilities ratio between subsequent policies
@@ -230,7 +235,7 @@ def sample_episodes_ppo(policy, sample_size, model_specs, policy_old=None, epsil
 
     for epi in range(sample_size):
         reward, prob_ratios_episode = episode_ppo(
-            policy, model_specs, policy_old=policy_old, epsilon=epsilon
+            policy, model_specs, policy_old=policy_old, action_recorder=action_recorder
             )
         rewards[epi] = reward
         prob_ratios[epi] = prob_ratios_episode
@@ -241,11 +246,10 @@ def sample_episodes_ppo(policy, sample_size, model_specs, policy_old=None, epsil
     surrogate = 0.0
     for epi in reversed(range(sample_size)):
 
-        # NOTE: this is the advantage function
         baselined_reward = (rewards[epi] - reward_mean) / (reward_std + eps)
 
         for prob_ratio in prob_ratios[epi]:
-            clipped = prob_ratio.clamp( 1-epsilon, 1+epsilon )
+            clipped = prob_ratio.clamp( 1 - epsilon, 1 + epsilon )
             surrogate = surrogate - torch.min(
                 prob_ratio * baselined_reward,
                 clipped * baselined_reward
@@ -254,7 +258,8 @@ def sample_episodes_ppo(policy, sample_size, model_specs, policy_old=None, epsil
     mean_surrogate = surrogate / sample_size
     return mean_surrogate, reward_mean, reward_std
 
-def training(policy, optimizer, iterations, episode_batch, model_specs, method='reinforce', epochs=1):
+def training(policy, optimizer, iterations, episode_batch, model_specs,
+             method='reinforce', epochs=1, record_actions=False):
     """Run the full episodic training schedule."""
 
     assert method == 'reinforce' or method == 'ppo', "methods supported: reinforce and ppo"
@@ -266,22 +271,25 @@ def training(policy, optimizer, iterations, episode_batch, model_specs, method='
     rewards_record = []
     rewards_std_record = []
 
+    if record_actions:
+        action_recorder = {time_point: [] for time_point in model_specs['time_points']}
+    else:
+        action_recorder = None
+
     print(f"Training for {iterations} iterations of {episode_batch} sampled episodes each!")
     for iteration in range(iterations):
 
         if method == 'reinforce':
             surrogate_mean, reward_mean, reward_std = sample_episodes_reinforce(
-                policy, episode_batch, model_specs
+                policy, episode_batch, model_specs, action_recorder=action_recorder
             )
         elif method == 'ppo':
             if iteration == 0:
-                surrogate_mean, reward_mean, reward_std = sample_episodes_ppo(
-                    policy, episode_batch, model_specs
-                )
-            else:
-                surrogate_mean, reward_mean, reward_std = sample_episodes_ppo(
-                    policy, episode_batch, model_specs, policy_old=policy_old
-                )
+                policy_old = None
+            surrogate_mean, reward_mean, reward_std = sample_episodes_ppo(
+                policy, episode_batch, model_specs,
+                policy_old=policy_old, action_recorder=action_recorder
+            )
 
         # maximize expected surrogate function
         if method == 'ppo':
@@ -300,8 +308,12 @@ def training(policy, optimizer, iterations, episode_batch, model_specs, method='
         print(f'mean reward: {reward_mean:.3} +- {reward_std:.2}')
 
         # save sampled episode plot
-        store_path = join('figures', f'profile_iteration_{iteration}_{method}.png')
+        store_path = join('figures', f'profile_iteration_{iteration}_method{method}.png')
         plot_policy_sample(policy, model_specs, show=False, store_path=store_path)
+
+        if record_actions:
+            store_path = join('figures', f'action_distribution_iteration_{iteration}_method_{method}.png')
+            plot_sampled_actions(action_recorder, iteration, show=False, store_path=store_path)
 
     # store trained policy
     torch.save(policy, join('serializations', 'policy_reinforce.pt'))
