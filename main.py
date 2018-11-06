@@ -7,7 +7,8 @@ import torch.optim as optim
 import matplotlib.pyplot as plt
 
 from policies import NeuralNetwork, LinearRegression
-from utilities import pretraining, training, plot_policy_sample
+from utilities import pretraining, training, plot_episode
+from plots import plot_reward_evolution
 
 # ray.init()  # this needs to be run on main script... not modules
 torch.manual_seed(666)
@@ -37,14 +38,14 @@ policy = NeuralNetwork(hidden_layers_size)
 
 # pretrain policy with uninformative distribution over [0, 5]: X ~ U(0, 5)
 pretraining_objective = [div * 5 / divisions for div in range(divisions)]
-desired_deviation = 2.5 / sqrt(3)
+desired_deviation = 2.5
 
 pretraining(
     policy, pretraining_objective, desired_deviation, model_specs,
     learning_rate=1e-1, iterations=100
     )
 
-# plot_policy_sample(policy, model_specs, objective=pretraining_objective)
+plot_episode(policy, model_specs, objective=pretraining_objective)
 
 # ---------------------------------------------------
 #                  REINFORCE training
@@ -63,9 +64,8 @@ iteration_rewards = training(
     method=method, epochs=epochs, record_actions=True
     )
 
-plt.plot(iteration_rewards)
-plt.title(f'batch size:{episode_batch} lr:{learning_rate}')
-plt.xlabel('iteration')
-plt.ylabel('reward')
-plt.savefig(f'figures/reward_method{method}_iteration{iterations}_batch{episode_batch}_lr{learning_rate}.png')
-plt.show()
+final_plot_path = join('figures', f'reward_method{method}_iteration{iterations}_batch{episode_batch}_lr{learning_rate}.png')
+plot_reward_evolution(
+    iteration_rewards, learning_rate, episode_batch,
+    store_path=final_plot_path
+    )

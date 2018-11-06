@@ -23,7 +23,7 @@ def forge_distribution(mean, sigma, lower_limit=0.0, upper_limit=5.0):
     """
     width = upper_limit - lower_limit
     assert width > 0
-    assert sigma < eps + width / 2, f"invalid std: {sigma.item()}"
+    assert sigma <= eps + width / 2, f"invalid std: {sigma.item()}"
 
     canonical_mean = (mean - lower_limit) / width
     canonical_sigma = sigma / width**2
@@ -91,7 +91,7 @@ def pretraining(policy, objective_actions, objective_deviation, model_specs,
 
     return None
 
-def plot_policy_sample(policy, model_specs, objective=None, show=True, store_path=None):
+def plot_episode(policy, model_specs, objective=None, show=True, store_path=None):
     """Compute a single episode of the given policy and plot it."""
 
     container = [None for i in model_specs['time_points']]
@@ -309,7 +309,7 @@ def training(policy, optimizer, iterations, episode_batch, model_specs,
 
         # save sampled episode plot
         store_path = join('figures', f'profile_iteration_{iteration}_method{method}.png')
-        plot_policy_sample(policy, model_specs, show=False, store_path=store_path)
+        plot_episode(policy, model_specs, show=False, store_path=store_path)
 
         if record_actions:
             store_path = join('figures', f'action_distribution_iteration_{iteration}_method_{method}.png')

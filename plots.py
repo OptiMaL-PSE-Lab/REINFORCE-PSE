@@ -1,11 +1,10 @@
 
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import seaborn as sns
-import pandas as pd
 
-from matplotlib.ticker import FuncFormatter
-
-# sns.set(style="whitegrid")
+mpl.rc('figure', figsize=(12,9))
+mpl.rc('savefig', bbox='tight')
 
 def plot_episode_states(time_array, y1, y2, U, objective=None, fontsize=12,
                         show=True, store_path=None):
@@ -41,19 +40,34 @@ def plot_episode_states(time_array, y1, y2, U, objective=None, fontsize=12,
 
 def plot_sampled_actions(action_recorder, iteration, show=True, store_path=None):
 
-    dataframe = pd.DataFrame(action_recorder) # NOTE: avoid pandas in the future...
+    time_points = sorted(list(action_recorder.keys()))
+    arrays = [action_recorder[time_point] for time_point in time_points]
+    ticks = [f'{time_point:.2f}' for time_point in time_points]
 
-    f = plt.figure(figsize=(15, 6))
+    plt.figure(figsize=(12, 6))
     with sns.axes_style("whitegrid"):
-        sns.violinplot(data=dataframe)
+        sns.violinplot(data=arrays)
         sns.despine(left=True, bottom=True)
         plt.xlabel('time')
         plt.ylabel('action')
         plt.title(f"iteration {iteration}")
-        # plt.gca().xaxis.set_major_formatter(FuncFormatter("{:.2f}".format)) # FIXME
+        plt.xticks(range(len(ticks)), ticks)
 
     if store_path is not None:
-        plt.savefig(store_path, dpi=800)
+        plt.savefig(store_path, dpi=500)
+    if show:
+        plt.show()
+    plt.close()
+
+def plot_reward_evolution(rewards, learning_rate, episode_batch,
+                          show=True, store_path=None):
+    plt.plot(rewards)
+    plt.title(f'batch size:{episode_batch} lr:{learning_rate}')
+    plt.xlabel('iteration')
+    plt.ylabel('reward')
+
+    if store_path is not None:
+        plt.savefig(store_path, dpi=500)
     if show:
         plt.show()
     plt.close()
