@@ -55,8 +55,8 @@ iterations = 200
 episode_batch = 100
 learning_rate = 1e-3
 
-method = 'ppo'
-epochs = 10
+method = 'reinforce'
+epochs = 1
 optimizer = optim.Adam(policy.parameters(), lr=learning_rate)
 
 iteration_rewards = training(

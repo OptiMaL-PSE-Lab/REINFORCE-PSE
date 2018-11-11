@@ -17,6 +17,18 @@ Current models of batch processes are ODE systems with certain free parameters a
   * REINFORCE algorithm with mean reward baseline.
   * PPO with baseline over mean reward as advantage function.
 
+## Usage
+
+Run `python main.py`, it prints to console the current reward and
+stores the relevant profiles in a `./figures/` subdirectory (not tracked via git).
+
+Parameters:
+
+* method: 'ppo' or 'reinforce'
+* episode_batch: number of sample episodes run to estimate loss function
+* epochs: gradient descent steps taken after episode sampling (just 1 for REINFORCE)
+* iterations: sampling-optimizing repetitions
+
 ### Action evolution sample
 
 <!-- ![Original](https://i.imgur.com/z9CPjA3.gif) -->
