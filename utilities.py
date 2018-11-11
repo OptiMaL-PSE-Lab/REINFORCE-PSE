@@ -207,7 +207,9 @@ def sample_episodes_reinforce(policy, sample_size, model_specs, action_recorder=
 
     for epi in range(sample_size):
         # reward, sum_log_prob = ray.get(samples[epi])
-        reward, sum_log_prob = episode_reinforce(policy, model_specs, action_recorder=action_recorder)
+        reward, sum_log_prob = episode_reinforce(
+            policy, model_specs, action_recorder=action_recorder
+            )
         rewards[epi] = reward
         sum_log_probs[epi] = sum_log_prob
 
@@ -312,8 +314,14 @@ def training(policy, optimizer, iterations, episode_batch, model_specs,
         plot_episode(policy, model_specs, show=False, store_path=store_path)
 
         if record_actions:
-            store_path = join('figures', f'action_distribution_iteration_{iteration}_method_{method}.png')
-            plot_sampled_actions(action_recorder, iteration, show=False, store_path=store_path)
+            store_path = join(
+                'figures',
+                f'action_distribution_iteration_{iteration}_method_{method}.png'
+                )
+            plot_sampled_actions(
+                action_recorder, iteration,
+                show=False, store_path=store_path
+                )
 
     # store trained policy
     torch.save(policy, join('serializations', 'policy_reinforce.pt'))

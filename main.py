@@ -13,7 +13,10 @@ from plots import plot_reward_evolution
 # ray.init()  # this needs to be run on main script... not modules
 torch.manual_seed(666)
 
-# specifications for dynamical system
+# -----------------------------------------------------------------------------------------
+#                                     MODEL SPECIFICATIONS
+# -----------------------------------------------------------------------------------------
+
 ti = 0
 tf = 1
 divisions = 20
@@ -36,7 +39,12 @@ hidden_layers_size = 15
 policy = NeuralNetwork(hidden_layers_size)
 # policy = LinearRegression()
 
-# pretrain policy with uninformative distribution over [0, 5]: X ~ U(0, 5)
+
+# -----------------------------------------------------------------------------------------
+#                                         PRETRAINING
+# -----------------------------------------------------------------------------------------
+
+# pretrain policy with linearly increasing policy means
 pretraining_objective = [div * 5 / divisions for div in range(divisions)]
 desired_deviation = 2.5
 
@@ -47,9 +55,9 @@ pretraining(
 
 plot_episode(policy, model_specs, objective=pretraining_objective)
 
-# ---------------------------------------------------
-#                  REINFORCE training
-# ---------------------------------------------------
+# -----------------------------------------------------------------------------------------
+#                                          TRAINING
+# -----------------------------------------------------------------------------------------
 
 iterations = 200
 episode_batch = 100
@@ -59,12 +67,25 @@ method = 'reinforce'
 epochs = 1
 optimizer = optim.Adam(policy.parameters(), lr=learning_rate)
 
+print(
+    (f'reward_method_{method}'
+    f'_iteration_{iterations}'
+    f'_batch_{episode_batch}'
+    f'_lr_{learning_rate}.png')
+)
+
 iteration_rewards = training(
     policy, optimizer, iterations, episode_batch, model_specs,
     method=method, epochs=epochs, record_actions=True
     )
 
-final_plot_path = join('figures', f'reward_method_{method}_iteration{iterations}_batch{episode_batch}_lr{learning_rate}.png')
+final_plot_path = join(
+    'figures', 
+    (f'reward_method_{method}'
+    '_iteration{iterations}'
+    '_batch{episode_batch}'
+    '_lr{learning_rate}.png')
+)
 plot_reward_evolution(
     iteration_rewards, learning_rate, episode_batch,
     store_path=final_plot_path
