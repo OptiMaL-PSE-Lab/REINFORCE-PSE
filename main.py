@@ -67,24 +67,17 @@ method = 'reinforce'
 epochs = 1
 optimizer = optim.Adam(policy.parameters(), lr=learning_rate)
 
-print(
-    (f'reward_method_{method}'
-    f'_iteration_{iterations}'
-    f'_batch_{episode_batch}'
-    f'_lr_{learning_rate}.png')
-)
-
 iteration_rewards = training(
     policy, optimizer, iterations, episode_batch, model_specs,
     method=method, epochs=epochs, record_actions=True
     )
 
 final_plot_path = join(
-    'figures', 
-    (f'reward_method_{method}'
-    '_iteration{iterations}'
-    '_batch{episode_batch}'
-    '_lr{learning_rate}.png')
+    'figures',
+    (f'reward_method_{method}_'
+    f'iteration_{iterations}_'
+    f'batch_{episode_batch}_'
+    f'lr_{learning_rate}.png')
 )
 plot_reward_evolution(
     iteration_rewards, learning_rate, episode_batch,
