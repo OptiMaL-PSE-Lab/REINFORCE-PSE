@@ -64,7 +64,7 @@ iteration_rewards = training(
     method=method, epochs=epochs, record_actions=True
     )
 
-final_plot_path = join('figures', f'reward_method{method}_iteration{iterations}_batch{episode_batch}_lr{learning_rate}.png')
+final_plot_path = join('figures', f'reward_method_{method}_iteration{iterations}_batch{episode_batch}_lr{learning_rate}.png')
 plot_reward_evolution(
     iteration_rewards, learning_rate, episode_batch,
     store_path=final_plot_path

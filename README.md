@@ -19,8 +19,7 @@ Current models of batch processes are ODE systems with certain free parameters a
 
 ### Action evolution sample
 
-![Original](https://i.imgur.com/z9CPjA3.gif)
-
+<!-- ![Original](https://i.imgur.com/z9CPjA3.gif) -->
 <html>
     <body>
         <p><img src="https://i.imgur.com/z9CPjA3.gif" alt="Action Probability Distribution" width="800" height="400" align="middle"></p>

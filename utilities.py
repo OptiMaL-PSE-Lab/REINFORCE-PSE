@@ -308,7 +308,7 @@ def training(policy, optimizer, iterations, episode_batch, model_specs,
         print(f'mean reward: {reward_mean:.3} +- {reward_std:.2}')
 
         # save sampled episode plot
-        store_path = join('figures', f'profile_iteration_{iteration}_method{method}.png')
+        store_path = join('figures', f'profile_iteration_{iteration}_method_{method}.png')
         plot_episode(policy, model_specs, show=False, store_path=store_path)
 
         if record_actions:
