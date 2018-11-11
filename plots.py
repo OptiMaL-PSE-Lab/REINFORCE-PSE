@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import seaborn as sns
 
-mpl.rc('figure', figsize=(12,9))
+mpl.rc('figure', figsize=(9,6))
 mpl.rc('savefig', bbox='tight')
 
 def plot_episode_states(time_array, y1, y2, U, objective=None, fontsize=12,
