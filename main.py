@@ -59,9 +59,9 @@ plot_episode(policy, model_specs, objective=pretraining_objective)
 #                                          TRAINING
 # -----------------------------------------------------------------------------------------
 
-iterations = 200
+iterations = 250
 episode_batch = 100
-learning_rate = 1e-3
+learning_rate = 5e-3
 
 method = 'reinforce'
 epochs = 1
@@ -75,7 +75,7 @@ iteration_rewards = training(
 final_plot_path = join(
     'figures',
     (f'reward_method_{method}_'
-    f'iteration_{iterations}_'
+    f'iterations_{iterations}_'
     f'batch_{episode_batch}_'
     f'lr_{learning_rate}.png')
 )
