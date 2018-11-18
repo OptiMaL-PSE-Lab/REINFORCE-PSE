@@ -29,11 +29,11 @@ Parameters:
 * epochs: gradient descent steps taken after episode sampling (just 1 for REINFORCE)
 * iterations: sampling-optimizing repetitions
 
-### Action evolution sample
+### Action distribution per optimization step
 
 <!-- ![Original](https://i.imgur.com/z9CPjA3.gif) -->
 <html>
     <body>
-        <p><img src="https://i.imgur.com/DMOoLJc.gif" alt="Action Probability Distribution" width="1000" height="400" align="middle"></p>
+        <p><img src="https://i.imgur.com/DMOoLJc.gif" alt="Action Probability Distribution" width="1000" height="500" align="middle"></p>
     </body>
 </html>
