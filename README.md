@@ -1,4 +1,4 @@
-# RL for batch processes optimization
+# Reinforcement Learning for batch processes optimization
 
 The basic idea is the usage of reinforcement learning techniques to optimize the controls
 taken over a chemical system evolution to optimize the outcome of certain variables.
@@ -15,7 +15,7 @@ Current models of batch processes are ODE systems with certain free parameters a
 * Gradient policy methods are used to optimize stochastic policies results.
   Several episode samples are needed to build the loss function to optimize over.
   * REINFORCE algorithm with mean reward baseline.
-  * PPO with baseline over mean reward as advantage function.
+  * PPO with deviation from mean reward as advantage function.
 
 ## Usage
 
@@ -29,11 +29,22 @@ Parameters:
 * epochs: gradient descent steps taken after episode sampling (just 1 for REINFORCE)
 * iterations: sampling-optimizing repetitions
 
-### Action distribution per optimization step
+### Reward evolution
 
-<!-- ![Original](https://i.imgur.com/z9CPjA3.gif) -->
-<html>
-    <body>
-        <p><img src="https://i.imgur.com/DMOoLJc.gif" alt="Action Probability Distribution" width="1000" height="500" align="middle"></p>
-    </body>
-</html>
+* REINFORCE
+
+<img src="https://i.imgur.com/3BQDNKp.png"  width="600" height="400">
+
+* PPO
+
+<img src="https://i.imgur.com/65JxgQ1.png"  width="600" height="400">
+
+### Action distributions of sampled episodes
+
+* REINFORCE
+
+<img src="https://i.imgur.com/DMOoLJc.gif" alt="Action Probability Distribution" width="1000" height="500" align="middle">
+
+* PPO
+
+<img src="https://i.imgur.com/ECyvYGz.gif" alt="Action Probability Distribution" width="1000" height="500" align="middle">
