@@ -50,7 +50,7 @@ desired_deviation = 2.5
 
 pretraining(
     policy, pretraining_objective, desired_deviation, model_specs,
-    learning_rate=1e-1, iterations=100
+    learning_rate=1e-1, iterations=200
     )
 
 plot_episode(policy, model_specs, objective=pretraining_objective)

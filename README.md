@@ -48,3 +48,5 @@ Parameters:
 * PPO
 
 <img src="https://i.imgur.com/ECyvYGz.gif" alt="Action Probability Distribution" width="1000" height="500" align="middle">
+
+**Kudos**: gifs made with the blazing-fast [gifski](https://github.com/ImageOptim/gifski)!
