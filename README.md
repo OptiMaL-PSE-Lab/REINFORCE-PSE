@@ -4,6 +4,16 @@ The basic idea is the usage of reinforcement learning techniques to optimize the
 taken over a chemical system evolution to optimize the outcome of certain variables.
 Current models of batch processes are ODE systems with certain free parameters as controls.
 
+## Systems modelled
+
+* For the following ODE system with parameters $`a = 1/2`$, $`b = 1`$ and control $`U(t) \in [0,5]`$,
+    maximize the value of $`y_2(t = 1)`$ from the initial state $`y_1 = 1, y_2 = 0`$ at $`t=0`$.
+
+```math
+    \dot{y_1} = -(U + U^2 a) y_1
+    \dot{y_2} = U y_1 b
+```
+
 ## Implementation
 
 * The evolution of the model corresponds to the integration of the ODE system over a fixed
