@@ -6,6 +6,7 @@
 *.pt
 
 # auxiliary files
+*.jpg
 *.gif
 *.png
 *.pdf
