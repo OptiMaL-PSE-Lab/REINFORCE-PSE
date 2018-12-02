@@ -6,13 +6,17 @@ Current models of batch processes are ODE systems with certain free parameters a
 
 ## Systems modelled
 
-* For the following ODE system with parameters $`a = 1/2`$, $`b = 1`$ and control $`U(t) \in [0,5]`$,
-    maximize the value of $`y_2(t = 1)`$ from the initial state $`y_1 = 1, y_2 = 0`$ at $`t=0`$.
+We model processes approximated analytically with ODE systems.
 
-```math
-    \dot{y_1} = -(U + U^2 a) y_1
-    \dot{y_2} = U y_1 b
-```
+* Find the optimal control $`U(t) \in [0,5]`$ over the time span $`t = (0,1)`$
+    that maximizes the final value of $`y_2`$.
+
+    $`\dot{y_1} = -(U + U^2 a) y_1`$,
+
+    $`\dot{y_2} = U b y_1`$
+
+    From the initial condition $`y_1 = 1`$, $`y_2 = 0`$
+    and parameters $`a = 1/2`$, $`b = 1`$.
 
 ## Implementation
 
