@@ -16,16 +16,16 @@ We model processes approximated analytically with ODE systems.
     $`\dot{y_2} = U b y_1`$
 
     From the initial condition $`y_1 = 1`$, $`y_2 = 0`$
-    and parameters $`a = 1/2`$, $`b = 1`$.
+    and with parameters $`a = 1/2`$, $`b = 1`$.
 
 ## Implementation
 
-* The evolution of the model corresponds to the integration of the ODE system over a fixed
-  amount of time.
+* The evolution of the model between subsequent states corresponds to the integration of the
+    ODE system over a fixed fraction of time.
 * Each state is composed of the current model variables and the remaining time of the process.
 * Policies take states and return the mean and variance of a probability distribution over
   the possible continuous actions available at each time.
-  * Beta probability distributions are used to deal with constrained continuous actions.
+  * A affine Beta probability distribution is used to deal with constrained continuous actions.
 * Gradient policy methods are used to optimize stochastic policies results.
   Several episode samples are needed to build the loss function to optimize over.
   * REINFORCE algorithm with mean reward baseline.
