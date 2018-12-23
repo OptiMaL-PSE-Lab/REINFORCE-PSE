@@ -18,7 +18,6 @@ def mean_std(m, s):
 
 
 class NeuralNetwork(nn.Module):
-
     def __init__(self, hidden_dim):
         super(NeuralNetwork, self).__init__()
         self.linear1 = nn.Linear(STATE_DIM, hidden_dim, bias=True)
@@ -36,7 +35,6 @@ class NeuralNetwork(nn.Module):
 
 
 class LinearRegression(nn.Module):
-
     def __init__(self):
         super(LinearRegression, self).__init__()
         self.linear = nn.Linear(STATE_DIM, ACTION_DIM)
