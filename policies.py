@@ -1,5 +1,3 @@
-from math import sqrt
-
 from torch import sigmoid
 import torch.nn as nn
 import torch.nn.functional as F

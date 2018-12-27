@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch import Tensor
-from torch.distributions import Normal, Beta, TransformedDistribution
+from torch.distributions import Beta, TransformedDistribution
 from torch.distributions.transforms import AffineTransform
 
 from integrator import model_integration

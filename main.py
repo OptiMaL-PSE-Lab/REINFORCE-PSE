@@ -1,12 +1,10 @@
 from os.path import join
-from math import sqrt
 
 # import ray
 import torch
 import torch.optim as optim
-import matplotlib.pyplot as plt
 
-from policies import NeuralNetwork, LinearRegression
+from policies import NeuralNetwork
 from utilities import pretraining, training, plot_episode
 from plots import plot_reward_evolution
 
