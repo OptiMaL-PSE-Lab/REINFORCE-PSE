@@ -5,10 +5,16 @@
 *.pyc
 *.pt
 
-# auxiliary files
+# images
 *.jpg
-*.gif
 *.png
+
+# animatins
+*.gif
+*.mp4
+*.webm
+
+# documents
 *.pdf
 
 # notebooks
