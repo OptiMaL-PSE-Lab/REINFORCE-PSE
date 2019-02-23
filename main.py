@@ -4,7 +4,8 @@ from os.path import join
 import torch
 import torch.optim as optim
 
-from policies import NeuralNetwork
+from integrator import SimpleModel
+from policies import NeuralNetwork, LinearRegression
 from utilities import pretraining, training, plot_episode
 from plots import plot_reward_evolution
 
@@ -15,47 +16,44 @@ torch.manual_seed(666)
 #                                     MODEL SPECIFICATIONS
 # -----------------------------------------------------------------------------------------
 
-ti = 0
-tf = 1
+# fixed parameters of the model
+parameters = 0.5, 1.0
+model = SimpleModel(parameters)
+
+# gather integration details
+ti, tf = 0, 1
 divisions = 20
 subinterval = (tf - ti) / divisions
 time_points = [ti + div * subinterval for div in range(divisions)]
 
-model_specs = {
-    "initial_state": (1, 0),
-    "a": 0.5,
-    "b": 1.0,
-    "ti": ti,
-    "tf": tf,
-    "divisions": divisions,
-    "subinterval": subinterval,
-    "time_points": time_points,
+integration_specs = {
+    'initial_state':    (1, 0),
+    'ti':               ti,
+    'tf':               tf,
+    'divisions':        divisions,
+    'subinterval':      subinterval,
+    'time_points':      time_points
 }
 
-# define policy network and other learning/reporting parameters
+# define policy network
 hidden_layers_size = 15
 policy = NeuralNetwork(hidden_layers_size)
-# policy = LinearRegression()
 
 
 # -----------------------------------------------------------------------------------------
 #                                         PRETRAINING
 # -----------------------------------------------------------------------------------------
 
-# pretrain policy with linearly increasing policy means
+# pretrain policy with linearly increasing policy means and fixed standar deviation
 pretraining_objective = [div * 5 / divisions for div in range(divisions)]
 desired_deviation = 2.5
 
 pretraining(
-    policy,
-    pretraining_objective,
-    desired_deviation,
-    model_specs,
-    learning_rate=1e-1,
-    iterations=200,
-)
+    model, policy, pretraining_objective, desired_deviation, integration_specs,
+    learning_rate=1e-1, iterations=100
+    )
 
-plot_episode(policy, model_specs, objective=pretraining_objective)
+plot_episode(model, policy, integration_specs, objective=pretraining_objective)
 
 # -----------------------------------------------------------------------------------------
 #                                          TRAINING
@@ -70,15 +68,9 @@ epochs = 1
 optimizer = optim.Adam(policy.parameters(), lr=learning_rate)
 
 iteration_rewards = training(
-    policy,
-    optimizer,
-    iterations,
-    episode_batch,
-    model_specs,
-    method=method,
-    epochs=epochs,
-    record_actions=True,
-)
+    model, policy, optimizer, iterations, episode_batch, integration_specs,
+    method=method, epochs=epochs, record_actions=True
+    )
 
 final_plot_path = join(
     "figures",

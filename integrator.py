@@ -10,7 +10,8 @@ class ODEModel(object):
         self.parameters = parameters
         self.controls_dims = controls_dims
         self.state_dims = state_dims
-        self.ode = scp.ode(self.system).set_integrator(integrator)
+        self.ode = scp.ode(self.system)
+        self.ode.set_integrator(integrator)
 
     def _check_dims(self, controls, state):
         try:
@@ -78,33 +79,3 @@ class ComplexModel(ODEModel):
         y2_prime = b * U1 * y1 - 0.7 * U2 * y1
 
         return [y1_prime, y2_prime]
-
-
-# def simple_system(t, state, f_args):
-
-#     U, a, b = f_args
-#     y1, y2 = state
-
-#     y1_prime = -(U + U**2 * a) * y1
-#     y2_prime = U * y1 * b
-
-#     return [y1_prime, y2_prime]
-
-# # parameters['subinterval'] = integration_time
-# def model_integration(model, parameters, initial_state, integration_time, initial_time=0.0):
-#     """
-#     params: dictionary of parameters passed to a model
-#     initial_state: numpy array of initial state
-#     """
-
-#     U = parameters['U']
-#     a = parameters['a']
-#     b = parameters['b']
-#     integration_time = parameters['subinterval']
-
-#     ode = scp.ode(model)
-#     ode.set_integrator('dopri5')
-#     ode.set_f_params(parameters)
-#     ode.set_initial_value(initial_state, initial_time)
-#     integrated_state = ode.integrate(ode.t + integration_time)
-#     return integrated_state
