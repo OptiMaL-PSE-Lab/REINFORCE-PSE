@@ -10,7 +10,7 @@ from utilities import pretraining, training, plot_episode
 from plots import plot_reward_evolution
 
 # ray.init()  # this needs to be run on main script... not modules
-torch.manual_seed(666)
+torch.manual_seed(31_415_926)
 
 # -----------------------------------------------------------------------------------------
 #                                     MODEL SPECIFICATIONS
@@ -27,18 +27,17 @@ subinterval = (tf - ti) / divisions
 time_points = [ti + div * subinterval for div in range(divisions)]
 
 integration_specs = {
-    'initial_state':    (1, 0),
-    'ti':               ti,
-    'tf':               tf,
-    'divisions':        divisions,
-    'subinterval':      subinterval,
-    'time_points':      time_points
+    "initial_state": (1, 0),
+    "ti": ti,
+    "tf": tf,
+    "divisions": divisions,
+    "subinterval": subinterval,
+    "time_points": time_points,
 }
 
 # define policy network
 hidden_layers_size = 15
 policy = NeuralNetwork(hidden_layers_size)
-
 
 # -----------------------------------------------------------------------------------------
 #                                         PRETRAINING
@@ -49,9 +48,14 @@ pretraining_objective = [div * 5 / divisions for div in range(divisions)]
 desired_deviation = 2.5
 
 pretraining(
-    model, policy, pretraining_objective, desired_deviation, integration_specs,
-    learning_rate=1e-1, iterations=100
-    )
+    model,
+    policy,
+    pretraining_objective,
+    desired_deviation,
+    integration_specs,
+    learning_rate=1e-1,
+    iterations=100,
+)
 
 plot_episode(model, policy, integration_specs, objective=pretraining_objective)
 
@@ -68,9 +72,16 @@ epochs = 1
 optimizer = optim.Adam(policy.parameters(), lr=learning_rate)
 
 iteration_rewards = training(
-    model, policy, optimizer, iterations, episode_batch, integration_specs,
-    method=method, epochs=epochs, record_actions=True
-    )
+    model,
+    policy,
+    optimizer,
+    iterations,
+    episode_batch,
+    integration_specs,
+    method=method,
+    epochs=epochs,
+    record_actions=True,
+)
 
 final_plot_path = join(
     "figures",

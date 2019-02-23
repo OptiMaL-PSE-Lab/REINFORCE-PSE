@@ -17,11 +17,13 @@ from plots import plot_episode_states, plot_sampled_actions
 
 eps = np.finfo(np.float32).eps.item()
 
+
 def iterable(controls):
     """Wrap control(s) in a iterable container."""
     if isinstance(controls, Number):
         return (controls,)
     return controls
+
 
 def forge_distribution(mean, sigma, lower_limit=0.0, upper_limit=5.0):
     """
@@ -45,8 +47,16 @@ def forge_distribution(mean, sigma, lower_limit=0.0, upper_limit=5.0):
 
     return transformed
 
-def pretraining(model, policy, objective_actions, objective_deviation, integration_specs,
-                learning_rate, iterations):
+
+def pretraining(
+    model,
+    policy,
+    objective_actions,
+    objective_deviation,
+    integration_specs,
+    learning_rate,
+    iterations,
+):
     """Trains parametric policy model to resemble desired starting function."""
 
     assert objective_deviation > 0
@@ -58,11 +68,11 @@ def pretraining(model, policy, objective_actions, objective_deviation, integrati
     # track gradients
     objective_means = torch.tensor(objective_actions)
     objective_stds = torch.tensor(
-        [objective_deviation for _ in integration_specs['time_points']]
-        )
+        [objective_deviation for _ in integration_specs["time_points"]]
+    )
 
     # predictions containers
-    empty_list = [None for _ in integration_specs['time_points']]
+    empty_list = [None for _ in integration_specs["time_points"]]
 
     states = empty_list.copy()
     predictions = empty_list.copy()
@@ -72,15 +82,15 @@ def pretraining(model, policy, objective_actions, objective_deviation, integrati
     for iteration in range(iterations):
 
         # define starting points at each episode
-        t = integration_specs['ti']
-        integrated_state = integration_specs['initial_state']
+        t = integration_specs["ti"]
+        integrated_state = integration_specs["initial_state"]
 
         # each step of this episode
-        for ind, _ in enumerate(integration_specs['time_points']):
+        for ind, _ in enumerate(integration_specs["time_points"]):
 
             # current state tracked container
-            time_left = integration_specs['tf'] - t
-            state = Tensor((*integrated_state, time_left)) # add time pending to state
+            time_left = integration_specs["tf"] - t
+            state = Tensor((*integrated_state, time_left))  # add time pending to state
 
             # continuous policy prediction
             mean, std = policy(state)
@@ -91,18 +101,21 @@ def pretraining(model, policy, objective_actions, objective_deviation, integrati
 
             # follow objective integration trajectory
             controls = iterable(objective_actions[ind])
-            integration_time = integration_specs['subinterval']
+            integration_time = integration_specs["subinterval"]
 
-            integrated_state = model.integrate(controls, integrated_state, integration_time, initial_time=t)
+            integrated_state = model.integrate(
+                controls, integrated_state, integration_time, initial_time=t
+            )
             t = t + integration_time
 
         # gather predictions of current policy
-        predicted_controls      = torch.stack(predictions).squeeze()
-        predicted_uncertainty   = torch.stack(uncertainties).squeeze()
+        predicted_controls = torch.stack(predictions).squeeze()
+        predicted_uncertainty = torch.stack(uncertainties).squeeze()
 
         # difference between desired predictions and current predictions
-        loss = criterion(objective_means, predicted_controls) + \
-               criterion(objective_stds, predicted_uncertainty)
+        loss = criterion(objective_means, predicted_controls) + criterion(
+            objective_stds, predicted_uncertainty
+        )
 
         # optimize policy
         optimizer.zero_grad()
@@ -113,52 +126,63 @@ def pretraining(model, policy, objective_actions, objective_deviation, integrati
 
     return None
 
-def plot_episode(model, policy, integration_specs, objective=None, show=True, store_path=None):
+
+def plot_episode(
+    model, policy, integration_specs, objective=None, show=True, store_path=None
+):
     """Compute a single episode of the given policy and plot it."""
 
-    container = [None for i in integration_specs['time_points']]
+    container = [None for i in integration_specs["time_points"]]
     y1 = container.copy()
     y2 = container.copy()
     U = container.copy()
 
     # define initial conditions
-    t = integration_specs['ti']
-    integrated_state = integration_specs['initial_state']
+    t = integration_specs["ti"]
+    integrated_state = integration_specs["initial_state"]
 
-    for ind, _ in enumerate(integration_specs['time_points']):
+    for ind, _ in enumerate(integration_specs["time_points"]):
 
-        timed_state = Tensor((*integrated_state, integration_specs['tf'] - t))
+        timed_state = Tensor((*integrated_state, integration_specs["tf"] - t))
         mean, std = policy(timed_state)
         dist = forge_distribution(mean, std)
         action = dist.sample()
 
         controls = list(action)
-        integration_time = integration_specs['subinterval']
-        integrated_state = model.integrate(controls, integrated_state, integration_time, initial_time=t)
+        integration_time = integration_specs["subinterval"]
+        integrated_state = model.integrate(
+            controls, integrated_state, integration_time, initial_time=t
+        )
 
         y1[ind] = integrated_state[0]
         y2[ind] = integrated_state[1]
-        U[ind]  = action  # TODO: handle multiple controls
+        U[ind] = action  # TODO: handle multiple controls
 
         t = t + integration_time
 
     plot_episode_states(
-        integration_specs['time_points'], y1, y2, U,
-        show=show, store_path=store_path, objective=objective
-        )
+        integration_specs["time_points"],
+        y1,
+        y2,
+        U,
+        show=show,
+        store_path=store_path,
+        objective=objective,
+    )
+
 
 # @ray.remote
 def episode_reinforce(model, policy, integration_specs, action_recorder=None):
     """Compute a single episode given a policy and track useful quantities for learning."""
 
     # define initial conditions
-    t = integration_specs['ti']
-    integrated_state = integration_specs['initial_state']
+    t = integration_specs["ti"]
+    integrated_state = integration_specs["initial_state"]
 
     sum_log_probs = 0.0
-    for time_point in integration_specs['time_points']:
+    for time_point in integration_specs["time_points"]:
 
-        timed_state = Tensor((*integrated_state, integration_specs['tf'] - t))
+        timed_state = Tensor((*integrated_state, integration_specs["tf"] - t))
         mean, std = policy(timed_state)
         dist = forge_distribution(mean, std)
         action = dist.sample()
@@ -166,11 +190,13 @@ def episode_reinforce(model, policy, integration_specs, action_recorder=None):
         sum_log_probs = sum_log_probs + log_prob
 
         controls = iterable(action)
-        integration_time = integration_specs['subinterval']
+        integration_time = integration_specs["subinterval"]
 
         t = t + integration_time
-        integrated_state = model.integrate(controls, integrated_state, integration_time, initial_time=t)
-        
+        integrated_state = model.integrate(
+            controls, integrated_state, integration_time, initial_time=t
+        )
+
         if action_recorder is not None:
             action_recorder[time_point].append(action.item())
 
@@ -179,17 +205,19 @@ def episode_reinforce(model, policy, integration_specs, action_recorder=None):
 
 
 # @ray.remote
-def episode_ppo(model, policy, integration_specs, policy_old=None, action_recorder=None):
+def episode_ppo(
+    model, policy, integration_specs, policy_old=None, action_recorder=None
+):
     """Compute a single episode given a policy and track useful quantities for learning."""
 
     # define initial conditions
-    t = integration_specs['ti']
-    integrated_state = integration_specs['initial_state']
+    t = integration_specs["ti"]
+    integrated_state = integration_specs["initial_state"]
 
     prob_ratios = []
-    for time_point in integration_specs['time_points']:
+    for time_point in integration_specs["time_points"]:
 
-        timed_state = Tensor((*integrated_state, integration_specs['tf'] - t))
+        timed_state = Tensor((*integrated_state, integration_specs["tf"] - t))
         mean, std = policy(timed_state)
         dist = forge_distribution(mean, std)
         action = dist.sample()
@@ -208,11 +236,12 @@ def episode_ppo(model, policy, integration_specs, policy_old=None, action_record
         prob_ratios.append(prob_ratio)
 
         controls = iterable(action)
-        integration_time = integration_specs['subinterval']
+        integration_time = integration_specs["subinterval"]
 
         t = t + integration_time
-        integrated_state = model.integrate(controls, integrated_state, integration_time, initial_time=t)
-
+        integrated_state = model.integrate(
+            controls, integrated_state, integration_time, initial_time=t
+        )
 
         if action_recorder is not None:
             action_recorder[time_point].append(action.item())
@@ -220,7 +249,10 @@ def episode_ppo(model, policy, integration_specs, policy_old=None, action_record
     reward = integrated_state[1]
     return reward, prob_ratios
 
-def sample_episodes_reinforce(model, policy, sample_size, integration_specs, action_recorder=None):
+
+def sample_episodes_reinforce(
+    model, policy, sample_size, integration_specs, action_recorder=None
+):
     """
     Executes multiple episodes under the current stochastic policy,
     gets an average of the reward and the summed log probabilities
@@ -238,7 +270,7 @@ def sample_episodes_reinforce(model, policy, sample_size, integration_specs, act
         # reward, sum_log_prob = ray.get(samples[epi])
         reward, sum_log_prob = episode_reinforce(
             model, policy, integration_specs, action_recorder=action_recorder
-            )
+        )
         rewards[epi] = reward
         sum_log_probs[epi] = sum_log_prob
 
@@ -253,8 +285,16 @@ def sample_episodes_reinforce(model, policy, sample_size, integration_specs, act
     mean_log_prob_R = log_prob_R / sample_size
     return mean_log_prob_R, reward_mean, reward_std
 
-def sample_episodes_ppo(model, policy, sample_size, integration_specs,
-                        policy_old=None, epsilon=0.3, action_recorder=None):
+
+def sample_episodes_ppo(
+    model,
+    policy,
+    sample_size,
+    integration_specs,
+    policy_old=None,
+    epsilon=0.3,
+    action_recorder=None,
+):
     """
     Executes multiple episodes under the current stochastic policy,
     gets an average of the reward and the probabilities ratio between subsequent policies
@@ -266,8 +306,12 @@ def sample_episodes_ppo(model, policy, sample_size, integration_specs,
 
     for epi in range(sample_size):
         reward, prob_ratios_episode = episode_ppo(
-            model, policy, integration_specs, policy_old=policy_old, action_recorder=action_recorder
-            )
+            model,
+            policy,
+            integration_specs,
+            policy_old=policy_old,
+            action_recorder=action_recorder,
+        )
         rewards[epi] = reward
         prob_ratios[epi] = prob_ratios_episode
 
@@ -288,8 +332,18 @@ def sample_episodes_ppo(model, policy, sample_size, integration_specs,
     mean_surrogate = surrogate / sample_size
     return mean_surrogate, reward_mean, reward_std
 
-def training(model, policy, optimizer, iterations, episode_batch, integration_specs,
-             method='reinforce', epochs=1, record_actions=False):
+
+def training(
+    model,
+    policy,
+    optimizer,
+    iterations,
+    episode_batch,
+    integration_specs,
+    method="reinforce",
+    epochs=1,
+    record_actions=False,
+):
     """Run the full episodic training schedule."""
 
     assert (
@@ -304,7 +358,9 @@ def training(model, policy, optimizer, iterations, episode_batch, integration_sp
     rewards_std_record = []
 
     if record_actions:
-        action_recorder = {time_point: [] for time_point in integration_specs['time_points']}
+        action_recorder = {
+            time_point: [] for time_point in integration_specs["time_points"]
+        }
     else:
         action_recorder = None
 
@@ -315,14 +371,22 @@ def training(model, policy, optimizer, iterations, episode_batch, integration_sp
 
         if method == "reinforce":
             surrogate_mean, reward_mean, reward_std = sample_episodes_reinforce(
-                model, policy, episode_batch, integration_specs, action_recorder=action_recorder
+                model,
+                policy,
+                episode_batch,
+                integration_specs,
+                action_recorder=action_recorder,
             )
         elif method == "ppo":
             if iteration == 0:
                 policy_old = None
             surrogate_mean, reward_mean, reward_std = sample_episodes_ppo(
-                model, policy, episode_batch, integration_specs,
-                policy_old=policy_old, action_recorder=action_recorder
+                model,
+                policy,
+                episode_batch,
+                integration_specs,
+                policy_old=policy_old,
+                action_recorder=action_recorder,
             )
 
         # maximize expected surrogate function
@@ -342,8 +406,12 @@ def training(model, policy, optimizer, iterations, episode_batch, integration_sp
         print(f"mean reward: {reward_mean:.3} +- {reward_std:.2}")
 
         # save sampled episode plot
-        store_path = join('figures', f'profile_iteration_{iteration:03d}_method_{method}.png')
-        plot_episode(model, policy, integration_specs, show=False, store_path=store_path)
+        store_path = join(
+            "figures", f"profile_iteration_{iteration:03d}_method_{method}.png"
+        )
+        plot_episode(
+            model, policy, integration_specs, show=False, store_path=store_path
+        )
 
         if record_actions:
             store_path = join(
