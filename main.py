@@ -7,7 +7,6 @@ import torch.optim as optim
 from integrator import SimpleModel
 from policies import NeuralNetwork, LinearRegression
 from utilities import pretraining, training, plot_episode
-from plots import plot_reward_evolution
 
 # ray.init()  # this needs to be run on main script... not modules
 torch.manual_seed(31_415_926)
@@ -36,7 +35,7 @@ integration_specs = {
 }
 
 # define policy network
-hidden_layers_size = 15
+hidden_layers_size = 25
 policy = NeuralNetwork(hidden_layers_size)
 
 # -----------------------------------------------------------------------------------------
@@ -45,7 +44,7 @@ policy = NeuralNetwork(hidden_layers_size)
 
 # pretrain policy with linearly increasing policy means and fixed standar deviation
 pretraining_objective = [div * 5 / divisions for div in range(divisions)]
-desired_deviation = 2.5
+desired_deviation = 2.0
 
 pretraining(
     model,
@@ -54,7 +53,7 @@ pretraining(
     desired_deviation,
     integration_specs,
     learning_rate=1e-1,
-    iterations=100,
+    iterations=300,
 )
 
 plot_episode(model, policy, integration_specs, objective=pretraining_objective)
@@ -63,35 +62,14 @@ plot_episode(model, policy, integration_specs, objective=pretraining_objective)
 #                                          TRAINING
 # -----------------------------------------------------------------------------------------
 
-iterations = 250
-episode_batch = 100
-learning_rate = 5e-3
+opt_specs = {
+    "iterations": 250,
+    "episode_batch": 100,
+    "learning_rate": 5e-3,
+    "method": "reinforce",
+    "epochs": 1,
+}
 
-method = "reinforce"
-epochs = 1
-optimizer = optim.Adam(policy.parameters(), lr=learning_rate)
+optimizer = optim.Adam(policy.parameters(), lr=opt_specs["learning_rate"])
 
-iteration_rewards = training(
-    model,
-    policy,
-    optimizer,
-    iterations,
-    episode_batch,
-    integration_specs,
-    method=method,
-    epochs=epochs,
-    record_actions=True,
-)
-
-final_plot_path = join(
-    "figures",
-    (
-        f"reward_method_{method}_"
-        f"iterations_{iterations}_"
-        f"batch_{episode_batch}_"
-        f"lr_{learning_rate}.png"
-    ),
-)
-plot_reward_evolution(
-    iteration_rewards, learning_rate, episode_batch, store_path=final_plot_path
-)
+training(model, policy, optimizer, integration_specs, opt_specs, record_graphs=True)

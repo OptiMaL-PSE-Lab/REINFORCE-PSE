@@ -13,7 +13,7 @@ from torch.distributions import Beta, TransformedDistribution
 from torch.distributions.transforms import AffineTransform
 
 from integrator import SimpleModel
-from plots import plot_episode_states, plot_sampled_actions
+from plots import plot_episode_states, plot_sampled_actions, plot_reward_evolution
 
 eps = np.finfo(np.float32).eps.item()
 
@@ -334,30 +334,22 @@ def sample_episodes_ppo(
 
 
 def training(
-    model,
-    policy,
-    optimizer,
-    iterations,
-    episode_batch,
-    integration_specs,
-    method="reinforce",
-    epochs=1,
-    record_actions=False,
+    model, policy, optimizer, integration_specs, opt_specs, record_graphs=False
 ):
     """Run the full episodic training schedule."""
 
     assert (
-        method == "reinforce" or method == "ppo"
+        opt_specs["method"] == "reinforce" or opt_specs["method"] == "ppo"
     ), "methods supported: reinforce and ppo"
 
     # prepare directories for results
     os.makedirs("figures", exist_ok=True)
     os.makedirs("serializations", exist_ok=True)
 
-    rewards_record = []
+    reward_recorder = []
     rewards_std_record = []
 
-    if record_actions:
+    if record_graphs:
         action_recorder = {
             time_point: [] for time_point in integration_specs["time_points"]
         }
@@ -365,64 +357,78 @@ def training(
         action_recorder = None
 
     print(
-        f"Training for {iterations} iterations of {episode_batch} sampled episodes each!"
+        f"Training for {opt_specs['iterations']} iterations of {opt_specs['episode_batch']} sampled episodes each!"
     )
-    for iteration in range(iterations):
+    for iteration in range(opt_specs["iterations"]):
 
-        if method == "reinforce":
+        if opt_specs["method"] == "reinforce":
             surrogate_mean, reward_mean, reward_std = sample_episodes_reinforce(
                 model,
                 policy,
-                episode_batch,
+                opt_specs["episode_batch"],
                 integration_specs,
                 action_recorder=action_recorder,
             )
-        elif method == "ppo":
+        elif opt_specs["method"] == "ppo":
             if iteration == 0:
                 policy_old = None
+
             surrogate_mean, reward_mean, reward_std = sample_episodes_ppo(
                 model,
                 policy,
-                episode_batch,
+                opt_specs["episode_batch"],
                 integration_specs,
                 policy_old=policy_old,
                 action_recorder=action_recorder,
             )
 
         # maximize expected surrogate function
-        if method == "ppo":
+        if opt_specs["method"] == "ppo":
             policy_old = copy.deepcopy(policy)
 
-        for _ in range(epochs):
+        for _ in range(opt_specs["epochs"]):
             optimizer.zero_grad()
             surrogate_mean.backward(retain_graph=True)
             optimizer.step()
 
         # store mean episode reward
-        rewards_record.append(reward_mean)
+        reward_recorder.append(reward_mean)
         rewards_std_record.append(reward_std)
 
         print("iteration:", iteration)
-        print(f"mean reward: {reward_mean:.3} +- {reward_std:.2}")
+        print(f"mean reward: {reward_mean:.5} +- {reward_std:.4}")
 
-        # save sampled episode plot
-        store_path = join(
-            "figures", f"profile_iteration_{iteration:03d}_method_{method}.png"
-        )
-        plot_episode(
-            model, policy, integration_specs, show=False, store_path=store_path
-        )
+        # # save sampled episode plot
+        # store_path = join(
+        #     "figures",
+        #     f"profile_iteration_{iteration:03d}_method_{opt_specs['method']}.png",
+        # )
+        # plot_episode(
+        #     model, policy, integration_specs, show=False, store_path=store_path
+        # )
 
-        if record_actions:
+        if record_graphs:
+
             store_path = join(
                 "figures",
-                f"action_distribution_iteration_{iteration:03d}_method_{method}.png",
+                f"action_distribution_method_{opt_specs['method']}_iteration_{iteration:03d}.png",
             )
             plot_sampled_actions(
                 action_recorder, iteration, show=False, store_path=store_path
             )
 
+            store_path = join(
+                "figures",
+                (
+                    f"reward_method_{opt_specs['method']}_"
+                    f"batch_{opt_specs['episode_batch']}_"
+                    f"lr_{opt_specs['learning_rate']}_"
+                    f"iteration_{iteration:03d}.png"
+                ),
+            )
+            plot_reward_evolution(
+                reward_recorder, iteration, opt_specs, show=False, store_path=store_path
+            )
+
     # store trained policy
     torch.save(policy, join("serializations", "policy_reinforce.pt"))
-
-    return rewards_record

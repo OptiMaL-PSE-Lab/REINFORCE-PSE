@@ -1,9 +1,11 @@
+from os.path import join
+
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import seaborn as sns
 
 mpl.rc("figure", figsize=(9, 6))
-mpl.rc("savefig", bbox="tight")
+mpl.rc("savefig", bbox="tight", dpi=500)
 
 
 def plot_episode_states(
@@ -56,22 +58,23 @@ def plot_sampled_actions(action_recorder, iteration, show=True, store_path=None)
         plt.xticks(range(len(ticks)), ticks)
 
     if store_path is not None:
-        plt.savefig(store_path, dpi=500)
+        plt.savefig(store_path)
     if show:
         plt.show()
     plt.close()
 
 
-def plot_reward_evolution(
-    rewards, learning_rate, episode_batch, show=True, store_path=None
-):
+def plot_reward_evolution(rewards, iteration, opt_specs, show=True, store_path=None):
     plt.plot(rewards)
-    plt.title(f"batch size:{episode_batch} lr:{learning_rate}")
+    plt.title(
+        f"batch size:{opt_specs['episode_batch']} lr:{opt_specs['learning_rate']} iteration:{iteration}"
+    )
     plt.xlabel("iteration")
     plt.ylabel("reward")
+    plt.xlim(0, opt_specs["iterations"])
 
     if store_path is not None:
-        plt.savefig(store_path, dpi=500)
+        plt.savefig(store_path)
     if show:
         plt.show()
     plt.close()
