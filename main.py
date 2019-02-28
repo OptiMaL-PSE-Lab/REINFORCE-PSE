@@ -5,7 +5,7 @@ import torch
 import torch.optim as optim
 
 from integrator import SimpleModel
-from policies import neural_policy
+from policies import neural_policy, extend_policy
 from utilities import pretraining, training, plot_episode
 
 # ray.init()  # this needs to be run on main script... not modules
@@ -20,7 +20,7 @@ model = SimpleModel()
 
 # gather integration details
 ti, tf = 0, 1
-divisions = 30
+divisions = 25
 subinterval = (tf - ti) / divisions
 time_points = [ti + div * subinterval for div in range(divisions)]
 
@@ -76,6 +76,6 @@ optimizer = optim.Adam(policy.parameters(), lr=opt_specs["learning_rate"])
 
 training(model, policy, optimizer, integration_specs, opt_specs, record_graphs=True)
 
-# TODO: load trained model in new one
-# model = TheModelClass(*args, **kwargs)
-# model.load_state_dict(torch.load(PATH))
+# TODO: freeze old layers while training new ones
+new_controls = 1
+new_policy = extend_policy(policy, new_controls)
