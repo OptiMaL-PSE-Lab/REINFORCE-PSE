@@ -2,43 +2,47 @@ from torch import sigmoid
 import torch.nn as nn
 import torch.nn.functional as F
 
-STATE_DIM = 3
-ACTION_DIM = 1
+class FlexNeuralNetwork(nn.Module):
+    """Class to generate dynamically a neural network of the given size and dimensions."""
 
-# var(X) = 1/12 if X ~ Beta(1,1) ~ U(0,1)
-# max var(X) = 1/4 for X ~ Beta with support [0, 1]
-# max std(X) = 5/2 for X ~ Beta with support [0, 5]
-def mean_std(m, s):
-    """Problem specific restrinctions on predicted mean and standard deviation."""
-    mean = 5 * sigmoid(m)
-    std = 2.5 * sigmoid(s)
-    return mean, std
+    def __init__(self, layers_sizes):
 
+        super().__init__()
 
-class NeuralNetwork(nn.Module):
-    def __init__(self, hidden_dim):
-        super(NeuralNetwork, self).__init__()
-        self.linear1 = nn.Linear(STATE_DIM, hidden_dim, bias=True)
-        self.linear2 = nn.Linear(hidden_dim, hidden_dim, bias=True)
-        self.linear3 = nn.Linear(hidden_dim, ACTION_DIM, bias=True)
-        self.linear3_ = nn.Linear(hidden_dim, ACTION_DIM, bias=True)
+        # collect al hidden layers with the specified dimension
+        self.hidden = nn.ModuleList()
+        for index in range(len(layers_sizes) - 2):
+            self.hidden.append(
+                nn.Linear(
+                    layers_sizes[index], layers_sizes[index + 1], bias=True
+                )
+            )
+
+        # mean and standar deviation for each output dimension
+        self.out_means = nn.Linear(layers_sizes[-2], layers_sizes[-1])
+        self.out_sigmas = nn.Linear(layers_sizes[-2], layers_sizes[-1])
 
     def forward(self, inputs):
+
         x = inputs
-        x = F.relu(self.linear1(x))
-        x = F.relu(self.linear2(x))
-        m, s = self.linear3(x), self.linear3_(x)
-        mean, std = mean_std(m, s)
-        return mean, std
+        for layer in self.hidden:
+            x = F.relu(layer(x))
 
+        # NOTE: restrictions for Beta distribution
 
-class LinearRegression(nn.Module):
-    def __init__(self):
-        super(LinearRegression, self).__init__()
-        self.linear = nn.Linear(STATE_DIM, ACTION_DIM)
-        self.linear_ = nn.Linear(STATE_DIM, ACTION_DIM)
+        # var(X) = 1/12 if X ~ Beta(1,1) ~ U(0,1)
+        # max var(X) = 1/4 for X ~ Beta with support [0, 1]
+        # max std(X) = 5/2 for X ~ Beta with support [0, 5]
+        means = 5 * sigmoid(self.out_means(x))
+        sigmas = 2.5 * sigmoid(self.out_sigmas(x))
 
-    def forward(self, x):
-        m, s = self.linear(x), self.linear_(x)
-        mean, std = mean_std(m, s)
-        return mean, std
+        return means, sigmas
+
+def neural_policy(states_dim, actions_dim, layers_size, num_layers):
+    """Forge neural network where all hidden layers have the same size."""
+
+    layers_sizes = [layers_size for _ in range(num_layers)]
+    layers_sizes.insert(0, states_dim)
+    layers_sizes.append(actions_dim)
+
+    return FlexNeuralNetwork(layers_sizes)

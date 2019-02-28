@@ -4,8 +4,9 @@ import numpy as np
 import scipy.integrate as scp
 
 
-# base class for what we we expect from any ODE model
 class ODEModel(object):
+    """Basic class that contains what is expected to be implemented from any ODE model."""
+
     def __init__(self, parameters, controls_dims, state_dims, integrator="dopri5"):
         self.parameters = parameters
         self.controls_dims = controls_dims
@@ -14,6 +15,7 @@ class ODEModel(object):
         self.ode.set_integrator(integrator)
 
     def _check_dims(self, controls, state):
+        """Runtime check of control and state dimensions."""
         try:
             iter(controls)
             iter(state)
@@ -29,14 +31,21 @@ class ODEModel(object):
                 state
             ), f"This model expects {self.state_dims} controls!"
 
-    # f_args should be a concatenation of parameters and controls (parameters first always!)
     @staticmethod  # static required to pass it as argument to scipy ode integrator
     def system(t, state, f_args):
+        """
+        Vectorial function representing an ODE system.
+        
+        * derivative array = system(current state)
+        
+        f_args is a concatenation of parameters (first always) and controls.
+        """
         raise NotImplementedError(
             "The function defining the dynamical system modeled must be specified!"
         )
 
     def integrate(self, controls, initial_state, integration_time, initial_time=0.0):
+        """General scipy integration routine."""
         self._check_dims(controls, initial_state)
         f_params = list(chain(self.parameters, controls))  # concatenation
         self.ode.set_f_params(f_params)
@@ -46,7 +55,7 @@ class ODEModel(object):
 
 
 class SimpleModel(ODEModel):
-    def __init__(self, parameters):
+    def __init__(self, parameters=(0.5, 1.0)):
         control_dims = 1
         state_dims = 2
         super().__init__(parameters, control_dims, state_dims)
@@ -64,7 +73,7 @@ class SimpleModel(ODEModel):
 
 
 class ComplexModel(ODEModel):
-    def __init__(self, parameters):
+    def __init__(self, parameters=(0.5, 1.0)):
         control_dims = 2
         state_dims = 2
         super().__init__(parameters, control_dims, state_dims)

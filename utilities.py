@@ -93,11 +93,11 @@ def pretraining(
             state = Tensor((*integrated_state, time_left))  # add time pending to state
 
             # continuous policy prediction
-            mean, std = policy(state)
+            means, sigma = policy(state)
 
             states[ind] = state
-            predictions[ind] = mean
-            uncertainties[ind] = std
+            predictions[ind] = means
+            uncertainties[ind] = sigma
 
             # follow objective integration trajectory
             controls = iterable(objective_actions[ind])
@@ -357,7 +357,10 @@ def training(
         action_recorder = None
 
     print(
-        f"Training for {opt_specs['iterations']} iterations of {opt_specs['episode_batch']} sampled episodes each!"
+        f"""
+        Training for {opt_specs['iterations']} iterations of
+        {opt_specs['episode_batch']} sampled episodes each!
+        """
     )
     for iteration in range(opt_specs["iterations"]):
 
@@ -411,7 +414,11 @@ def training(
 
             store_path = join(
                 "figures",
-                f"action_distribution_method_{opt_specs['method']}_iteration_{iteration:03d}.png",
+                (
+                    f"action_distribution_"
+                    f"method_{opt_specs['method']}_"
+                    f"iteration_{iteration:03d}.png"
+                ),
             )
             plot_sampled_actions(
                 action_recorder, iteration, show=False, store_path=store_path
@@ -420,7 +427,8 @@ def training(
             store_path = join(
                 "figures",
                 (
-                    f"reward_method_{opt_specs['method']}_"
+                    f"reward_"
+                    f"method_{opt_specs['method']}_"
                     f"batch_{opt_specs['episode_batch']}_"
                     f"lr_{opt_specs['learning_rate']}_"
                     f"iteration_{iteration:03d}.png"
@@ -431,4 +439,4 @@ def training(
             )
 
     # store trained policy
-    torch.save(policy, join("serializations", "policy_reinforce.pt"))
+    torch.save(policy.state_dict(), join("serializations", "initial_policy.pt"))

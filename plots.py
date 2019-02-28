@@ -72,6 +72,7 @@ def plot_reward_evolution(rewards, iteration, opt_specs, show=True, store_path=N
     plt.xlabel("iteration")
     plt.ylabel("reward")
     plt.xlim(0, opt_specs["iterations"])
+    plt.ylim(0.45, 0.6)
 
     if store_path is not None:
         plt.savefig(store_path)
