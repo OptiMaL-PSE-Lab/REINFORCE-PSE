@@ -54,7 +54,7 @@ def sample_actions(means, sigmas):
     """
 
     actions = []
-    log_probs = [] # FIXME: this should be a scalar even with multiple actions!
+    sum_log_prob = 0.0
     for mean, sigma in zip(means, sigmas):
 
         dist = forge_distribution(mean, sigma)
@@ -62,9 +62,24 @@ def sample_actions(means, sigmas):
         log_prob = dist.log_prob(action)
 
         actions.append(action)
-        log_probs.append(log_prob)
+        sum_log_prob = sum_log_prob + log_prob
 
-    return actions, log_probs
+    return actions, sum_log_prob
+
+def get_log_prob(means, sigmas, controls):
+    """
+    Forge the corresponding distributions for the given means and sigmas
+    and calculate the log probability of the given controls for thos distributions.
+    """
+    sum_log_prob = 0.0
+    for ind, (mean, sigma) in enumerate(zip(means, sigmas)):
+
+        dist = forge_distribution(mean, sigma)
+        log_prob = dist.log_prob(controls[ind])
+
+        sum_log_prob = sum_log_prob + log_prob
+    
+    return sum_log_prob
 
 def pretraining(
     model,
@@ -201,13 +216,11 @@ def episode_reinforce(model, policy, integration_specs, action_recorder=None):
     for time_point in integration_specs["time_points"]:
 
         timed_state = Tensor((*integrated_state, integration_specs["tf"] - t))
-        mean, std = policy(timed_state)
-        dist = forge_distribution(mean, std)
-        action = dist.sample()
-        log_prob = dist.log_prob(action)
-        sum_log_probs = sum_log_probs + log_prob
+        means, sigmas = policy(timed_state)
+        controls, sum_log_prob = sample_actions(means, sigmas)
 
-        controls = iterable(action)
+        sum_log_probs = sum_log_probs + sum_log_prob
+
         integration_time = integration_specs["subinterval"]
 
         t = t + integration_time
@@ -216,7 +229,7 @@ def episode_reinforce(model, policy, integration_specs, action_recorder=None):
         )
 
         if action_recorder is not None:
-            action_recorder[time_point].append(action.item())
+            action_recorder[time_point].append(controls) # FIXME?
 
     reward = integrated_state[1]
     return reward, sum_log_probs
@@ -236,24 +249,20 @@ def episode_ppo(
     for time_point in integration_specs["time_points"]:
 
         timed_state = Tensor((*integrated_state, integration_specs["tf"] - t))
-        mean, std = policy(timed_state)
-        dist = forge_distribution(mean, std)
-        action = dist.sample()
-        log_prob = dist.log_prob(action)
+        means, sigmas = policy(timed_state)
+        controls, log_prob = sample_actions(means, sigmas)
 
         # NOTE: probability of same action under older distribution
         #       avoid tracked gradients in old policy
         if policy_old is None or policy_old == policy:
-            log_prob_old = log_prob.item()
+            log_prob_old = log_prob
         else:
-            mean_old, std_old = policy_old(timed_state)
-            dist_old = forge_distribution(mean_old, std_old)
-            log_prob_old = dist_old.log_prob(action).item()
+            means_old, sigmas_old = policy_old(timed_state)
+            log_prob_old = get_log_prob(means_old, sigmas_old, controls)
 
         prob_ratio = (log_prob - log_prob_old).exp()
         prob_ratios.append(prob_ratio)
 
-        controls = iterable(action)
         integration_time = integration_specs["subinterval"]
 
         t = t + integration_time
@@ -262,7 +271,7 @@ def episode_ppo(
         )
 
         if action_recorder is not None:
-            action_recorder[time_point].append(action.item())
+            action_recorder[time_point].append(controls)
 
     reward = integrated_state[1]
     return reward, prob_ratios
@@ -344,7 +353,8 @@ def sample_episodes_ppo(
         for prob_ratio in prob_ratios[epi]:
             clipped = prob_ratio.clamp(1 - epsilon, 1 + epsilon)
             surrogate = surrogate - torch.min(
-                prob_ratio * baselined_reward, clipped * baselined_reward
+                baselined_reward * prob_ratio,
+                baselined_reward * clipped
             )
 
     mean_surrogate = surrogate / sample_size

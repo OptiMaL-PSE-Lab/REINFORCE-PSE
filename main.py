@@ -4,7 +4,7 @@ from os.path import join
 import torch
 import torch.optim as optim
 
-from integrator import SimpleModel
+from integrator import SimpleModel, ComplexModel
 from policies import neural_policy, extend_policy, shift_grad_tracking
 from utilities import pretraining, training, plot_episode
 
@@ -58,14 +58,14 @@ pretraining(
     iterations=150,
 )
 
-plot_episode(model, policy, integration_specs, objective=pretraining_objective)
+# plot_episode(model, policy, integration_specs, objective=pretraining_objective)
 
 # -----------------------------------------------------------------------------------------
 #                                          TRAINING
 # -----------------------------------------------------------------------------------------
 
 opt_specs = {
-    "iterations": 150,
+    "iterations": 10,
     "episode_batch": 100,
     "learning_rate": 5e-3,
     "method": "reinforce",
@@ -76,7 +76,6 @@ optimizer = optim.Adam(policy.parameters(), lr=opt_specs["learning_rate"])
 
 training(model, policy, optimizer, integration_specs, opt_specs, record_graphs=True)
 
-# TODO: freeze old layers while training new ones
 new_controls = 1
 new_policy = extend_policy(policy, new_controls)
 
@@ -89,5 +88,12 @@ shift_grad_tracking(new_policy, False)
 shift_grad_tracking(new_policy.new_out_means, True)
 shift_grad_tracking(new_policy.new_out_sigmas, True)
 
+new_model = ComplexModel()
 new_optimizer = optim.Adam(new_policy.parameters(), lr=opt_specs["learning_rate"])
-# training(model, new_policy, new_optimizer, integration_specs, opt_specs, record_graphs=False)
+opt_specs.update({
+    "iterations": 10,
+    "learning_rate": 1e-1,
+})
+training(
+    new_model, new_policy, new_optimizer, integration_specs, opt_specs, record_graphs=False
+)

@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import seaborn as sns
 
-mpl.rc("figure", figsize=(9, 6))
+sns.set_style(style="whitegrid")
+mpl.rc("figure", figsize=(12, 6))
 mpl.rc("savefig", bbox="tight", dpi=500)
 
 
@@ -45,17 +46,30 @@ def plot_episode_states(
 def plot_sampled_actions(action_recorder, iteration, show=True, store_path=None):
 
     time_points = sorted(list(action_recorder.keys()))
-    arrays = [action_recorder[time_point] for time_point in time_points]
+
+    num_controls = len(action_recorder[time_points[0]][0])
+    controls_lists = [[[] for time in time_points] for control in range(num_controls)]
+
+    for ind_time, time_point in enumerate(time_points):
+        recorded_controls = action_recorder[time_point]
+
+        for controls in recorded_controls:
+            for ind_control, control in enumerate(controls):
+                controls_lists[ind_control][ind_time].append(control.item())
+
     ticks = [f"{time_point:.2f}" for time_point in time_points]
 
-    plt.figure(figsize=(12, 6))
-    with sns.axes_style("whitegrid"):
-        sns.violinplot(data=arrays)
-        sns.despine(left=True, bottom=True)
-        plt.xlabel("time")
-        plt.ylabel("action")
-        plt.title(f"iteration {iteration}")
-        plt.xticks(range(len(ticks)), ticks)
+    _, axes = plt.subplots(nrows=num_controls, ncols=1, squeeze=False)
+
+    plt.title(f"iteration {iteration}")
+    plt.xlabel("time")
+    # plt.xticks(range(len(ticks)), ticks)
+    for num_control, ax_row in enumerate(axes):
+        ax = ax_row[0]
+        sns.violinplot(data=controls_lists[num_control], ax=ax)
+        sns.despine(left=True, bottom=True, ax=ax)
+        ax.set_ylabel(f"control {num_control}")
+        ax.set_xticklabels(ticks)
 
     if store_path is not None:
         plt.savefig(store_path)
