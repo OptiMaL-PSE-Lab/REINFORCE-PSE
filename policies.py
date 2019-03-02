@@ -61,18 +61,23 @@ def extend_policy(policy, num_new_outputs):
         x = inputs
         for layer in self.hidden:
             x = F.relu(layer(x))
-        
+
         means = 5 * torch.sigmoid(self.out_means(x))
         sigmas = 2.5 * torch.sigmoid(self.out_sigmas(x))
 
         new_means = 5 * torch.sigmoid(self.new_out_means(x))
         new_sigmas = 2.5 * torch.sigmoid(self.new_out_sigmas(x))
 
-        all_means = torch.cat(means, new_means)
-        all_sigmas = torch.cat(sigmas, new_sigmas)
+        all_means = torch.cat((means, new_means))
+        all_sigmas = torch.cat((sigmas, new_sigmas))
 
         return all_means, all_sigmas
-    
+
     policy.forward = MethodType(forward, policy)
 
-    return policy        
+    return policy
+
+def shift_grad_tracking(torch_object, track):
+    for param in torch_object.parameters():
+        param.requires_grad = track
+

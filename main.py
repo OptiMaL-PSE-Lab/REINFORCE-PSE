@@ -5,7 +5,7 @@ import torch
 import torch.optim as optim
 
 from integrator import SimpleModel
-from policies import neural_policy, extend_policy
+from policies import neural_policy, extend_policy, shift_grad_tracking
 from utilities import pretraining, training, plot_episode
 
 # ray.init()  # this needs to be run on main script... not modules
@@ -79,3 +79,15 @@ training(model, policy, optimizer, integration_specs, opt_specs, record_graphs=T
 # TODO: freeze old layers while training new ones
 new_controls = 1
 new_policy = extend_policy(policy, new_controls)
+
+# -----------------------------------------------------------------------------------------
+#                                      EXTEND POLICY
+# -----------------------------------------------------------------------------------------
+
+# freeze all layers except added ones
+shift_grad_tracking(new_policy, False)
+shift_grad_tracking(new_policy.new_out_means, True)
+shift_grad_tracking(new_policy.new_out_sigmas, True)
+
+new_optimizer = optim.Adam(new_policy.parameters(), lr=opt_specs["learning_rate"])
+# training(model, new_policy, new_optimizer, integration_specs, opt_specs, record_graphs=False)

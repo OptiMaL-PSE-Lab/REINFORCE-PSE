@@ -47,6 +47,24 @@ def forge_distribution(mean, sigma, lower_limit=0.0, upper_limit=5.0):
 
     return transformed
 
+def sample_actions(means, sigmas):
+    """
+    Forge a distribution for each pair of means and sigmas,
+    sample an action from it and calculate its probability logarithm
+    """
+
+    actions = []
+    log_probs = [] # FIXME: this should be a scalar even with multiple actions!
+    for mean, sigma in zip(means, sigmas):
+
+        dist = forge_distribution(mean, sigma)
+        action = dist.sample()
+        log_prob = dist.log_prob(action)
+
+        actions.append(action)
+        log_probs.append(log_prob)
+
+    return actions, log_probs
 
 def pretraining(
     model,
@@ -144,19 +162,19 @@ def plot_episode(
     for ind, _ in enumerate(integration_specs["time_points"]):
 
         timed_state = Tensor((*integrated_state, integration_specs["tf"] - t))
-        mean, std = policy(timed_state)
-        dist = forge_distribution(mean, std)
-        action = dist.sample()
+        means, sigmas = policy(timed_state)
 
-        controls = list(action)
+        controls, _ = sample_actions(means, sigmas)
+
         integration_time = integration_specs["subinterval"]
         integrated_state = model.integrate(
             controls, integrated_state, integration_time, initial_time=t
         )
 
+        # TODO: generalize plotting for multiple controls
         y1[ind] = integrated_state[0]
         y2[ind] = integrated_state[1]
-        U[ind] = action  # TODO: handle multiple controls
+        U[ind] = controls[0]  # FIXME: please!
 
         t = t + integration_time
 
