@@ -65,7 +65,7 @@ pretraining(
 # -----------------------------------------------------------------------------------------
 
 opt_specs = {
-    "iterations": 10,
+    "iterations": 100,
     "episode_batch": 100,
     "learning_rate": 5e-3,
     "method": "reinforce",
@@ -91,9 +91,9 @@ shift_grad_tracking(new_policy.new_out_sigmas, True)
 new_model = ComplexModel()
 new_optimizer = optim.Adam(new_policy.parameters(), lr=opt_specs["learning_rate"])
 opt_specs.update({
-    "iterations": 10,
+    "iterations": 100,
     "learning_rate": 1e-1,
 })
 training(
-    new_model, new_policy, new_optimizer, integration_specs, opt_specs, record_graphs=False
+    new_model, new_policy, new_optimizer, integration_specs, opt_specs, record_graphs=True
 )

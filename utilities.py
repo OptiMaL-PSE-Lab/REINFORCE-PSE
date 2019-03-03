@@ -445,6 +445,7 @@ def training(
                 (
                     f"action_distribution_"
                     f"method_{opt_specs['method']}_"
+                    f"controls_{model.controls_dims}_"
                     f"iteration_{iteration:03d}.png"
                 ),
             )
@@ -457,6 +458,7 @@ def training(
                 (
                     f"reward_"
                     f"method_{opt_specs['method']}_"
+                    f"controls_{model.controls_dims}_"
                     f"batch_{opt_specs['episode_batch']}_"
                     f"lr_{opt_specs['learning_rate']}_"
                     f"iteration_{iteration:03d}.png"
