@@ -78,7 +78,7 @@ def get_log_prob(means, sigmas, controls):
         log_prob = dist.log_prob(controls[ind])
 
         sum_log_prob = sum_log_prob + log_prob
-    
+
     return sum_log_prob
 
 def pretraining(
@@ -452,6 +452,10 @@ def training(
             plot_sampled_actions(
                 action_recorder, iteration, show=False, store_path=store_path
             )
+
+    # NOTE: separated to have all rewards accesible to tune ylims accordingly
+    if record_graphs:
+        for iteration in range(opt_specs["iterations"]):
 
             store_path = join(
                 "figures",

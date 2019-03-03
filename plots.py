@@ -78,15 +78,17 @@ def plot_sampled_actions(action_recorder, iteration, show=True, store_path=None)
     plt.close()
 
 
-def plot_reward_evolution(rewards, iteration, opt_specs, show=True, store_path=None):
+def plot_reward_evolution(all_rewards, iteration, opt_specs, show=True, store_path=None):
+    
+    rewards = all_rewards[ : iteration]
     plt.plot(rewards)
     plt.title(
         f"batch size:{opt_specs['episode_batch']} lr:{opt_specs['learning_rate']} iteration:{iteration}"
     )
     plt.xlabel("iteration")
     plt.ylabel("reward")
-    plt.xlim(0, opt_specs["iterations"])
-    plt.ylim(0.45, 0.6)
+    plt.xlim(0, opt_specs["iterations"] + 1)
+    plt.ylim(min(all_rewards), max(all_rewards))
 
     if store_path is not None:
         plt.savefig(store_path)
