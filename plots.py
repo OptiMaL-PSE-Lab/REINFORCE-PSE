@@ -59,14 +59,14 @@ def plot_sampled_actions(action_recorder, iteration, show=True, store_path=None)
 
     ticks = [f"{time_point:.2f}" for time_point in time_points]
 
-    _, axes = plt.subplots(nrows=num_controls, ncols=1, squeeze=False)
+    _, axes = plt.subplots(nrows=num_controls, ncols=1, squeeze=False, sharex=True)
 
-    plt.title(f"iteration {iteration}")
-    plt.xlabel("time")
+    axes[0][0].set_title(f"iteration {iteration}")
+    axes[-1][0].set_xlabel("time")
     # plt.xticks(range(len(ticks)), ticks)
     for num_control, ax_row in enumerate(axes):
         ax = ax_row[0]
-        sns.violinplot(data=controls_lists[num_control], ax=ax)
+        sns.violinplot(data=controls_lists[num_control], ax=ax, scale="width")
         sns.despine(left=True, bottom=True, ax=ax)
         ax.set_ylabel(f"control {num_control}")
         ax.set_xticklabels(ticks)

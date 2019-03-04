@@ -47,6 +47,7 @@ def forge_distribution(mean, sigma, lower_limit=0.0, upper_limit=5.0):
 
     return transformed
 
+
 def sample_actions(means, sigmas):
     """
     Forge a distribution for each pair of means and sigmas,
@@ -66,6 +67,7 @@ def sample_actions(means, sigmas):
 
     return actions, sum_log_prob
 
+
 def get_log_prob(means, sigmas, controls):
     """
     Forge the corresponding distributions for the given means and sigmas
@@ -81,10 +83,11 @@ def get_log_prob(means, sigmas, controls):
 
     return sum_log_prob
 
+
 def pretraining(
     model,
     policy,
-    objective_actions,
+    objective_controls,
     objective_deviation,
     integration_specs,
     learning_rate,
@@ -94,20 +97,28 @@ def pretraining(
 
     assert objective_deviation > 0
 
+    num_controls = len(objective_controls[0])
+    assert all(
+        len(objective_control) == num_controls
+        for objective_control in objective_controls
+    )
+
     # training parameters
-    criterion = nn.MSELoss(reduction="elementwise_mean")
+    criterion = nn.MSELoss(reduction="mean")
     optimizer = optim.Adam(policy.parameters(), lr=learning_rate)
 
-    # track gradients
-    objective_means = torch.tensor(objective_actions)
-    objective_stds = torch.tensor(
-        [objective_deviation for _ in integration_specs["time_points"]]
+    # use tensors to track gradients
+    objective_controls = torch.tensor(objective_controls)
+    objective_deviations = torch.tensor(
+        [
+            (objective_deviation,) * num_controls
+            for _ in integration_specs["time_points"]
+        ]
     )
 
     # predictions containers
     empty_list = [None for _ in integration_specs["time_points"]]
 
-    states = empty_list.copy()
     predictions = empty_list.copy()
     uncertainties = empty_list.copy()
 
@@ -128,12 +139,11 @@ def pretraining(
             # continuous policy prediction
             means, sigma = policy(state)
 
-            states[ind] = state
             predictions[ind] = means
             uncertainties[ind] = sigma
 
             # follow objective integration trajectory
-            controls = iterable(objective_actions[ind])
+            controls = iterable(objective_controls[ind])
             integration_time = integration_specs["subinterval"]
 
             integrated_state = model.integrate(
@@ -142,12 +152,12 @@ def pretraining(
             t = t + integration_time
 
         # gather predictions of current policy
-        predicted_controls = torch.stack(predictions).squeeze()
-        predicted_uncertainty = torch.stack(uncertainties).squeeze()
+        predicted_controls = torch.stack(predictions)
+        predicted_deviations = torch.stack(uncertainties)
 
         # difference between desired predictions and current predictions
-        loss = criterion(objective_means, predicted_controls) + criterion(
-            objective_stds, predicted_uncertainty
+        loss = criterion(objective_controls, predicted_controls) + criterion(
+            objective_deviations, predicted_deviations
         )
 
         # optimize policy
@@ -229,7 +239,7 @@ def episode_reinforce(model, policy, integration_specs, action_recorder=None):
         )
 
         if action_recorder is not None:
-            action_recorder[time_point].append(controls) # FIXME?
+            action_recorder[time_point].append(controls)  # FIXME?
 
     reward = integrated_state[1]
     return reward, sum_log_probs
@@ -353,8 +363,7 @@ def sample_episodes_ppo(
         for prob_ratio in prob_ratios[epi]:
             clipped = prob_ratio.clamp(1 - epsilon, 1 + epsilon)
             surrogate = surrogate - torch.min(
-                baselined_reward * prob_ratio,
-                baselined_reward * clipped
+                baselined_reward * prob_ratio, baselined_reward * clipped
             )
 
     mean_surrogate = surrogate / sample_size
@@ -362,7 +371,13 @@ def sample_episodes_ppo(
 
 
 def training(
-    model, policy, optimizer, integration_specs, opt_specs, record_graphs=False
+    model,
+    policy,
+    optimizer,
+    integration_specs,
+    opt_specs,
+    record_graphs=False,
+    plot_id="",
 ):
     """Run the full episodic training schedule."""
 
@@ -445,7 +460,7 @@ def training(
                 (
                     f"action_distribution_"
                     f"method_{opt_specs['method']}_"
-                    f"controls_{model.controls_dims}_"
+                    f"id_{plot_id}_"
                     f"iteration_{iteration:03d}.png"
                 ),
             )
@@ -462,7 +477,7 @@ def training(
                 (
                     f"reward_"
                     f"method_{opt_specs['method']}_"
-                    f"controls_{model.controls_dims}_"
+                    f"id_{plot_id}_"
                     f"batch_{opt_specs['episode_batch']}_"
                     f"lr_{opt_specs['learning_rate']}_"
                     f"iteration_{iteration:03d}.png"

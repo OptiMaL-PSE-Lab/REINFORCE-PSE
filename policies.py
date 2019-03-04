@@ -51,31 +51,32 @@ def neural_policy(states_dim, actions_dim, layers_size, num_layers):
 
     return FlexNeuralNetwork(layers_sizes)
 
-def extend_policy(policy, num_new_outputs):
 
-    policy.new_out_means = nn.Linear(policy.layers_sizes[-2], num_new_outputs)
-    policy.new_out_sigmas = nn.Linear(policy.layers_sizes[-2], num_new_outputs)
+# def extend_policy(policy, num_new_outputs):
 
-    def forward(self, inputs):
+#     policy.new_out_means = nn.Linear(policy.layers_sizes[-2], num_new_outputs)
+#     policy.new_out_sigmas = nn.Linear(policy.layers_sizes[-2], num_new_outputs)
 
-        x = inputs
-        for layer in self.hidden:
-            x = F.relu(layer(x))
+#     def forward(self, inputs):
 
-        means = 5 * torch.sigmoid(self.out_means(x))
-        sigmas = 2.5 * torch.sigmoid(self.out_sigmas(x))
+#         x = inputs
+#         for layer in self.hidden:
+#             x = F.relu(layer(x))
 
-        new_means = 5 * torch.sigmoid(self.new_out_means(x))
-        new_sigmas = 2.5 * torch.sigmoid(self.new_out_sigmas(x))
+#         means = 5 * torch.sigmoid(self.out_means(x))
+#         sigmas = 2.5 * torch.sigmoid(self.out_sigmas(x))
 
-        all_means = torch.cat((means, new_means))
-        all_sigmas = torch.cat((sigmas, new_sigmas))
+#         new_means = 5 * torch.sigmoid(self.new_out_means(x))
+#         new_sigmas = 2.5 * torch.sigmoid(self.new_out_sigmas(x))
 
-        return all_means, all_sigmas
+#         all_means = torch.cat((means, new_means))
+#         all_sigmas = torch.cat((sigmas, new_sigmas))
 
-    policy.forward = MethodType(forward, policy)
+#         return all_means, all_sigmas
 
-    return policy
+#     policy.forward = MethodType(forward, policy)
+
+#     return policy
 
 def shift_grad_tracking(torch_object, track):
     for param in torch_object.parameters():
