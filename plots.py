@@ -43,6 +43,49 @@ def plot_episode_states(
     plt.close()
 
 
+def plot_sampled_biactions(action_recorder, iteration, show=True, store_path=None):
+
+    time_points = sorted(list(action_recorder.keys()))
+
+    num_controls = len(action_recorder[time_points[0]][0])
+    assert num_controls == 2, "This plotting routine is just intended for 2 controls."
+
+    long_form_dict = {key: [] for key in ["time", "value", "control"]}
+
+    for time_point in time_points:
+
+        recorded_controls = action_recorder[time_point]
+
+        for controls in recorded_controls:
+
+            long_form_dict["time"].append(f"{time_point:.2f}")
+            long_form_dict["value"].append(controls[0].item())
+            long_form_dict["control"].append("control_0")
+
+            long_form_dict["time"].append(f"{time_point:.2f}")
+            long_form_dict["value"].append(controls[1].item())
+            long_form_dict["control"].append("control_1")
+
+    ax = sns.violinplot(
+        x=long_form_dict["time"],
+        y=long_form_dict["value"],
+        hue=long_form_dict["control"],
+        split=True,
+        scale="width",
+        inner="quartile",
+    )
+    ax.set_title(f"iteration {iteration}")
+    # sns.despine(left=True, bottom=True, ax=ax)
+
+    if store_path is not None:
+        plt.savefig(store_path)
+
+    if show:
+        plt.show()
+
+    plt.close()
+
+
 def plot_sampled_actions(action_recorder, iteration, show=True, store_path=None):
 
     time_points = sorted(list(action_recorder.keys()))
@@ -73,14 +116,17 @@ def plot_sampled_actions(action_recorder, iteration, show=True, store_path=None)
 
     if store_path is not None:
         plt.savefig(store_path)
+
     if show:
         plt.show()
     plt.close()
 
 
-def plot_reward_evolution(all_rewards, iteration, opt_specs, show=True, store_path=None):
-    
-    rewards = all_rewards[ : iteration]
+def plot_reward_evolution(
+    all_rewards, iteration, opt_specs, show=True, store_path=None
+):
+
+    rewards = all_rewards[:iteration]
     plt.plot(rewards)
     plt.title(
         f"batch size:{opt_specs['episode_batch']} lr:{opt_specs['learning_rate']} iteration:{iteration}"

@@ -9,7 +9,7 @@ from policies import neural_policy, shift_grad_tracking
 from utilities import pretraining, training, plot_episode
 
 # ray.init()  # this needs to be run on main script... not modules
-torch.manual_seed(3_141_926)
+torch.manual_seed(3_141_592)
 
 # -----------------------------------------------------------------------------------------
 #                                     MODEL SPECIFICATIONS
@@ -36,7 +36,7 @@ integration_specs = {
 # define policy network
 states_dim = 3
 actions_dim = 2
-hidden_layers = 2
+hidden_layers = 3
 layers_size = 25
 policy = neural_policy(states_dim, actions_dim, layers_size, hidden_layers)
 
@@ -70,7 +70,7 @@ pretraining(
 opt_specs = {
     "iterations": 100,
     "episode_batch": 100,
-    "learning_rate": 5e-3,
+    "learning_rate": 1e-2,
     "method": "reinforce",
     "epochs": 1,
 }
@@ -88,17 +88,20 @@ training(
 )
 
 # -----------------------------------------------------------------------------------------
-#                                      EXTEND POLICY
+#                                   MORE COMPLEX MODEL
 # -----------------------------------------------------------------------------------------
 
-# freeze all layers except added ones
+# freeze all policy layers except last ones
 shift_grad_tracking(policy, False)
 shift_grad_tracking(policy.out_means, True)
 shift_grad_tracking(policy.out_sigmas, True)
 
+# define new parameters
 new_model = ComplexModel()
 new_optimizer = optim.Adam(policy.parameters(), lr=opt_specs["learning_rate"])
 opt_specs.update({"iterations": 50, "learning_rate": 1e-1})
+
+# retrain last layers
 training(
     new_model,
     policy,

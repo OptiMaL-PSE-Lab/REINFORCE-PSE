@@ -13,7 +13,12 @@ from torch.distributions import Beta, TransformedDistribution
 from torch.distributions.transforms import AffineTransform
 
 from integrator import SimpleModel
-from plots import plot_episode_states, plot_sampled_actions, plot_reward_evolution
+from plots import (
+    plot_episode_states,
+    plot_sampled_actions,
+    plot_sampled_biactions,
+    plot_reward_evolution,
+)
 
 eps = np.finfo(np.float32).eps.item()
 
@@ -464,9 +469,14 @@ def training(
                     f"iteration_{iteration:03d}.png"
                 ),
             )
-            plot_sampled_actions(
-                action_recorder, iteration, show=False, store_path=store_path
-            )
+            if model.controls_dims == 2:
+                plot_sampled_biactions(
+                    action_recorder, iteration, show=False, store_path=store_path
+                )
+            else:
+                plot_sampled_actions(
+                    action_recorder, iteration, show=False, store_path=store_path
+                )
 
     # NOTE: separated to have all rewards accesible to tune ylims accordingly
     if record_graphs:

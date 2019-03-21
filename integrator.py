@@ -56,9 +56,9 @@ class ODEModel(object):
 
 class SimpleModel(ODEModel):
     def __init__(self, parameters=(0.5, 1.0, 1.0, 1.0)):
-        control_dims = 2
+        controls_dims = 2
         state_dims = 2
-        super().__init__(parameters, control_dims, state_dims)
+        super().__init__(parameters, controls_dims, state_dims)
 
     @staticmethod
     def system(t, state, f_args):
@@ -74,9 +74,9 @@ class SimpleModel(ODEModel):
 
 class ComplexModel(ODEModel):
     def __init__(self, parameters=(0.5, 1.0, 0.7, 0.5)):
-        control_dims = 2
+        controls_dims = 2
         state_dims = 2
-        super().__init__(parameters, control_dims, state_dims)
+        super().__init__(parameters, controls_dims, state_dims)
 
     @staticmethod
     def system(t, state, f_args):
