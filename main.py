@@ -36,7 +36,7 @@ integration_specs = {
 # define policy network
 states_dim = 3
 actions_dim = 2
-hidden_layers = 3
+hidden_layers = 2
 layers_size = 25
 policy = neural_policy(states_dim, actions_dim, layers_size, hidden_layers)
 
@@ -68,9 +68,9 @@ pretraining(
 # -----------------------------------------------------------------------------------------
 
 opt_specs = {
-    "iterations": 100,
+    "iterations": 300,
     "episode_batch": 100,
-    "learning_rate": 1e-2,
+    "learning_rate": 5e-3,
     "method": "reinforce",
     "epochs": 1,
 }
@@ -84,7 +84,7 @@ training(
     integration_specs,
     opt_specs,
     record_graphs=True,
-    plot_id="simple",
+    model_id="simple",
 )
 
 # -----------------------------------------------------------------------------------------
@@ -99,7 +99,7 @@ shift_grad_tracking(policy.out_sigmas, True)
 # define new parameters
 new_model = ComplexModel()
 new_optimizer = optim.Adam(policy.parameters(), lr=opt_specs["learning_rate"])
-opt_specs.update({"iterations": 50, "learning_rate": 1e-1})
+opt_specs.update({"iterations": 80, "learning_rate": 1e-1})
 
 # retrain last layers
 training(
@@ -109,5 +109,5 @@ training(
     integration_specs,
     opt_specs,
     record_graphs=True,
-    plot_id="complex",
+    model_id="complex",
 )

@@ -5,8 +5,8 @@ import matplotlib as mpl
 import seaborn as sns
 
 sns.set_style(style="whitegrid")
-mpl.rc("figure", figsize=(12, 6))
-mpl.rc("savefig", bbox="tight", dpi=500)
+mpl.rc("figure", figsize=(9, 3))
+mpl.rc("savefig", bbox="tight", dpi=600)
 
 
 def plot_episode_states(
@@ -109,7 +109,7 @@ def plot_sampled_actions(action_recorder, iteration, show=True, store_path=None)
     # plt.xticks(range(len(ticks)), ticks)
     for num_control, ax_row in enumerate(axes):
         ax = ax_row[0]
-        sns.violinplot(data=controls_lists[num_control], ax=ax, scale="width")
+        sns.violinplot(data=controls_lists[num_control], ax=ax, scale="area", bw="silverman")
         sns.despine(left=True, bottom=True, ax=ax)
         ax.set_ylabel(f"control {num_control}")
         ax.set_xticklabels(ticks)

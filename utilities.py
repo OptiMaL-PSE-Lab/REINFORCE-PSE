@@ -382,17 +382,27 @@ def training(
     integration_specs,
     opt_specs,
     record_graphs=False,
-    plot_id="",
+    model_id=None,
 ):
     """Run the full episodic training schedule."""
 
+    assert model_id != None, "please provide the model_id keyword"
     assert (
         opt_specs["method"] == "reinforce" or opt_specs["method"] == "ppo"
     ), "methods supported: reinforce and ppo"
 
     # prepare directories for results
-    os.makedirs("figures", exist_ok=True)
     os.makedirs("serializations", exist_ok=True)
+    if record_graphs:
+        plots_dir = join(
+            "figures",
+            (
+                f"method_{opt_specs['method']}_"
+                f"batch_{opt_specs['episode_batch']}_"
+                f"iter_{opt_specs['iterations']}"
+            ),
+        )
+        os.makedirs(plots_dir)
 
     reward_recorder = []
     rewards_std_record = []
@@ -449,53 +459,45 @@ def training(
         print("iteration:", iteration)
         print(f"mean reward: {reward_mean:.5} +- {reward_std:.4}")
 
-        # # save sampled episode plot
-        # store_path = join(
-        #     "figures",
-        #     f"profile_iteration_{iteration:03d}_method_{opt_specs['method']}.png",
-        # )
-        # plot_episode(
-        #     model, policy, integration_specs, show=False, store_path=store_path
-        # )
-
         if record_graphs:
 
-            store_path = join(
-                "figures",
-                (
-                    f"action_distribution_"
-                    f"method_{opt_specs['method']}_"
-                    f"id_{plot_id}_"
-                    f"iteration_{iteration:03d}.png"
-                ),
+            plot_name = (
+                f"action_distribution_"
+                f"id_{model_id}_"
+                f"lr_{opt_specs['learning_rate']}_"
+                f"iteration_{iteration:03d}.png"
             )
             if model.controls_dims == 2:
                 plot_sampled_biactions(
-                    action_recorder, iteration, show=False, store_path=store_path
+                    action_recorder,
+                    iteration,
+                    show=False,
+                    store_path=join(plots_dir, plot_name),
                 )
             else:
                 plot_sampled_actions(
-                    action_recorder, iteration, show=False, store_path=store_path
+                    action_recorder,
+                    iteration,
+                    show=False,
+                    store_path=join(plots_dir, plot_name),
                 )
 
     # NOTE: separated to have all rewards accesible to tune ylims accordingly
     if record_graphs:
         for iteration in range(opt_specs["iterations"]):
-
-            store_path = join(
-                "figures",
-                (
-                    f"reward_"
-                    f"method_{opt_specs['method']}_"
-                    f"id_{plot_id}_"
-                    f"batch_{opt_specs['episode_batch']}_"
-                    f"lr_{opt_specs['learning_rate']}_"
-                    f"iteration_{iteration:03d}.png"
-                ),
+            plot_name = (
+                f"reward_"
+                f"id_{model_id}_"
+                f"lr_{opt_specs['learning_rate']}_"
+                f"iteration_{iteration:03d}.png"
             )
             plot_reward_evolution(
-                reward_recorder, iteration, opt_specs, show=False, store_path=store_path
+                reward_recorder,
+                iteration,
+                opt_specs,
+                show=False,
+                store_path=join(plots_dir, plot_name),
             )
 
     # store trained policy
-    torch.save(policy.state_dict(), join("serializations", "initial_policy.pt"))
+    torch.save(policy.state_dict(), join("serializations", f"{model_id}_policy.pt"))
