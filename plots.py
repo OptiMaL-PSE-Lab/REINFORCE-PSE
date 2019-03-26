@@ -12,7 +12,6 @@ mpl.rc("savefig", bbox="tight", dpi=600)
 def plot_episode_states(
     time_array, y1, y2, U, objective=None, fontsize=12, show=True, store_path=None
 ):
-
     grid_shape = (3, 1)
 
     plt.subplot2grid(grid_shape, (0, 0))
@@ -109,7 +108,9 @@ def plot_sampled_actions(action_recorder, iteration, show=True, store_path=None)
     # plt.xticks(range(len(ticks)), ticks)
     for num_control, ax_row in enumerate(axes):
         ax = ax_row[0]
-        sns.violinplot(data=controls_lists[num_control], ax=ax, scale="area", bw="silverman")
+        sns.violinplot(
+            data=controls_lists[num_control], ax=ax, scale="area", bw="silverman"
+        )
         sns.despine(left=True, bottom=True, ax=ax)
         ax.set_ylabel(f"control {num_control}")
         ax.set_xticklabels(ticks)
@@ -125,7 +126,6 @@ def plot_sampled_actions(action_recorder, iteration, show=True, store_path=None)
 def plot_reward_evolution(
     all_rewards, iteration, opt_specs, show=True, store_path=None
 ):
-
     rewards = all_rewards[:iteration]
     plt.plot(rewards)
     plt.title(
