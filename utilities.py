@@ -29,7 +29,6 @@ def iterable(controls):
         return (controls,)
     return controls
 
-
 def forge_distribution(mean, sigma, lower_limit=0.0, upper_limit=5.0):
     """
     Find the required concentration hyperparameters in the canonical Beta distribution
@@ -135,6 +134,7 @@ def pretraining(
         integrated_state = integration_specs["initial_state"]
 
         # each step of this episode
+        hidden_state=None
         for ind, _ in enumerate(integration_specs["time_points"]):
 
             # current state tracked container
@@ -142,7 +142,7 @@ def pretraining(
             state = Tensor((*integrated_state, time_left))  # add time pending to state
 
             # continuous policy prediction
-            means, sigma = policy(state)
+            (means, sigma), hidden_state = policy(state, hidden_state=hidden_state)
 
             predictions[ind] = means
             uncertainties[ind] = sigma
@@ -160,19 +160,17 @@ def pretraining(
         predicted_controls = torch.stack(predictions)
         predicted_deviations = torch.stack(uncertainties)
 
-        # difference between desired predictions and current predictions
-        loss = criterion(objective_controls, predicted_controls) + criterion(
-            objective_deviations, predicted_deviations
-        )
-
         # optimize policy
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+        def closure():
+            optimizer.zero_grad()
+            loss = criterion(objective_controls, predicted_controls) + criterion(
+                objective_deviations, predicted_deviations
+            )
+            print("iteration:", iteration, "\t loss:", loss.item())
+            loss.backward()
+            return loss
+        optimizer.step(closure)
 
-        print("iteration:", iteration, "\t loss:", loss.item())
-
-    return None
 
 
 def plot_episode(

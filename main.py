@@ -39,8 +39,8 @@ actions_dim = 2
 hidden_layers = 2
 layers_size = 25
 
-policy = neural_policy(states_dim, actions_dim, layers_size, hidden_layers, topology="NN")
-# policy = neural_policy(states_dim, actions_dim, layers_size, hidden_layers, topology="RNN")
+# policy = neural_policy(states_dim, actions_dim, layers_size, hidden_layers)
+policy = FlexRNN(states_dim, layers_size, actions_dim)
 
 # -----------------------------------------------------------------------------------------
 #                                         PRETRAINING
@@ -62,8 +62,6 @@ pretraining(
     learning_rate=1e-1,
     iterations=150,
 )
-
-# plot_episode(model, policy, integration_specs, objective=pretraining_objective)
 
 # -----------------------------------------------------------------------------------------
 #                                          TRAINING
