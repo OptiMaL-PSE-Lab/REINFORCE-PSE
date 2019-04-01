@@ -59,8 +59,8 @@ pretraining(
     desired_controls,
     desired_deviation,
     integration_specs,
-    learning_rate=1e-1,
-    iterations=150,
+    learning_rate=0.1,
+    iterations=200,
 )
 
 # -----------------------------------------------------------------------------------------
@@ -91,15 +91,16 @@ training(
 #                                   MORE COMPLEX MODEL
 # -----------------------------------------------------------------------------------------
 
+new_model = ComplexModel()
+
 # freeze all policy layers except last ones
 shift_grad_tracking(policy, False)
 shift_grad_tracking(policy.out_means, True)
 shift_grad_tracking(policy.out_sigmas, True)
 
 # define new parameters
-new_model = ComplexModel()
-new_optimizer = optim.Adam(policy.parameters(), lr=opt_specs["learning_rate"])
 opt_specs.update({"iterations": 100, "learning_rate": 1e-1})
+new_optimizer = optim.Adam(policy.parameters(), lr=opt_specs["learning_rate"])
 
 # retrain last layers
 training(

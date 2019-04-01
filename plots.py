@@ -4,8 +4,20 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import seaborn as sns
 
+SMALL_SIZE = 6
+MEDIUM_SIZE = 8
+BIGGER_SIZE = 10
+
 sns.set_style(style="whitegrid")
-mpl.rc("figure", figsize=(9, 3))
+
+mpl.rc('font', size=SMALL_SIZE)        # controls default text sizes
+mpl.rc('axes', titlesize=BIGGER_SIZE)  # fontsize of the axes title
+mpl.rc('axes', labelsize=MEDIUM_SIZE)  # fontsize of the x and y labels
+mpl.rc('xtick', labelsize=SMALL_SIZE)  # fontsize of the tick labels
+mpl.rc('ytick', labelsize=SMALL_SIZE)  # fontsize of the tick labels
+mpl.rc('legend', fontsize=SMALL_SIZE)  # legend fontsize
+
+mpl.rc("figure", figsize=(6, 2))
 mpl.rc("savefig", bbox="tight", dpi=600)
 
 
@@ -72,6 +84,7 @@ def plot_sampled_biactions(action_recorder, iteration, show=True, store_path=Non
         split=True,
         scale="width",
         inner="quartile",
+        linewidth=0.8,
     )
     ax.set_title(f"iteration {iteration}")
     # sns.despine(left=True, bottom=True, ax=ax)
@@ -109,7 +122,11 @@ def plot_sampled_actions(action_recorder, iteration, show=True, store_path=None)
     for num_control, ax_row in enumerate(axes):
         ax = ax_row[0]
         sns.violinplot(
-            data=controls_lists[num_control], ax=ax, scale="area", bw="silverman"
+            data=controls_lists[num_control],
+            ax=ax,
+            scale="width",
+            bw="silverman",
+            linewidth=0.8,
         )
         sns.despine(left=True, bottom=True, ax=ax)
         ax.set_ylabel(f"control {num_control}")
@@ -133,8 +150,11 @@ def plot_reward_evolution(
     )
     plt.xlabel("iteration")
     plt.ylabel("reward")
-    plt.xlim(0, opt_specs["iterations"] + 1)
-    plt.ylim(min(all_rewards), max(all_rewards))
+    plt.xlim(-1, opt_specs["iterations"] + 1)
+    mini = min(all_rewards)
+    maxi = max(all_rewards)
+    width = maxi - mini
+    plt.ylim(mini - 0.1 * width, maxi + 0.1 * width)
 
     if store_path is not None:
         plt.savefig(store_path)

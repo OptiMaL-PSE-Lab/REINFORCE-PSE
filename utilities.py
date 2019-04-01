@@ -399,6 +399,7 @@ def training(
         plots_dir = join(
             "figures",
             (
+                f"policy_{policy.__class__.__name__}_"
                 f"method_{opt_specs['method']}_"
                 f"batch_{opt_specs['episode_batch']}_"
                 f"iter_{opt_specs['iterations']}"
@@ -452,7 +453,7 @@ def training(
 
         for _ in range(opt_specs["epochs"]):
 
-            optimizer.zero_grad() # FIXME: should this be outside of the loop
+            optimizer.zero_grad() # FIXME: should this be outside of the loop??
             surrogate_mean.backward(retain_graph=True)
             optimizer.step()
 
