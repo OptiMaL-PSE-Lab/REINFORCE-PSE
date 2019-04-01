@@ -142,10 +142,10 @@ def pretraining(
             state = Tensor((*integrated_state, time_left))  # add time pending to state
 
             # continuous policy prediction
-            (means, sigma), hidden_state = policy(state, hidden_state=hidden_state)
+            (means, sigmas), hidden_state = policy(state, hidden_state=hidden_state)
 
             predictions[ind] = means
-            uncertainties[ind] = sigma
+            uncertainties[ind] = sigmas
 
             # follow objective integration trajectory
             controls = iterable(objective_controls[ind])
@@ -163,8 +163,9 @@ def pretraining(
         # optimize policy
         def closure():
             optimizer.zero_grad()
-            loss = criterion(objective_controls, predicted_controls) + criterion(
-                objective_deviations, predicted_deviations
+            loss = (
+                criterion(objective_controls, predicted_controls) +
+                criterion(objective_deviations, predicted_deviations)
             )
             print("iteration:", iteration, "\t loss:", loss.item())
             loss.backward()
@@ -187,10 +188,11 @@ def plot_episode(
     t = integration_specs["ti"]
     integrated_state = integration_specs["initial_state"]
 
+    hidden_state = None
     for ind, _ in enumerate(integration_specs["time_points"]):
 
         timed_state = Tensor((*integrated_state, integration_specs["tf"] - t))
-        means, sigmas = policy(timed_state)
+        (means, sigmas), hidden_state = policy(timed_state, hidden_state=hidden_state)
 
         controls, _ = sample_actions(means, sigmas)
 
@@ -226,10 +228,11 @@ def episode_reinforce(model, policy, integration_specs, action_recorder=None):
     integrated_state = integration_specs["initial_state"]
 
     sum_log_probs = 0.0
+    hidden_state = None
     for time_point in integration_specs["time_points"]:
 
         timed_state = Tensor((*integrated_state, integration_specs["tf"] - t))
-        means, sigmas = policy(timed_state)
+        (means, sigmas), hidden_state = policy(timed_state, hidden_state=hidden_state)
         controls, sum_log_prob = sample_actions(means, sigmas)
 
         sum_log_probs = sum_log_probs + sum_log_prob
@@ -259,10 +262,11 @@ def episode_ppo(
     integrated_state = integration_specs["initial_state"]
 
     prob_ratios = []
+    hidden_state = None
     for time_point in integration_specs["time_points"]:
 
         timed_state = Tensor((*integrated_state, integration_specs["tf"] - t))
-        means, sigmas = policy(timed_state)
+        (means, sigmas), hidden_state = policy(timed_state, hidden_state=hidden_state)
         controls, log_prob = sample_actions(means, sigmas)
 
         # NOTE: probability of same action under older distribution
@@ -418,6 +422,7 @@ def training(
         {opt_specs['episode_batch']} sampled episodes each!
         """
     )
+
     for iteration in range(opt_specs["iterations"]):
 
         if opt_specs["method"] == "reinforce":
@@ -446,7 +451,8 @@ def training(
             policy_old = copy.deepcopy(policy)
 
         for _ in range(opt_specs["epochs"]):
-            optimizer.zero_grad()
+
+            optimizer.zero_grad() # FIXME: should this be outside of the loop
             surrogate_mean.backward(retain_graph=True)
             optimizer.step()
 

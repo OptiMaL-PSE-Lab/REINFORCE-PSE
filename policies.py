@@ -3,6 +3,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+# NOTE: restrictions for Beta distribution
+
+# var(X) = 1/12 if X ~ Beta(1,1) ~ U(0,1)
+# max var(X) = 1/4 for X ~ Beta with support [0, 1]
+# max std(X) = 5/2 for X ~ Beta with support [0, 5]
+
+
 class FlexNN(nn.Module):
     """Class to generate dynamically a neural network."""
 
@@ -31,10 +38,6 @@ class FlexNN(nn.Module):
             x = F.relu(layer(x))
 
         # NOTE: restrictions for Beta distribution
-
-        # var(X) = 1/12 if X ~ Beta(1,1) ~ U(0,1)
-        # max var(X) = 1/4 for X ~ Beta with support [0, 1]
-        # max std(X) = 5/2 for X ~ Beta with support [0, 5]
         means = 5 * torch.sigmoid(self.out_means(x))
         sigmas = 2.5 * torch.sigmoid(self.out_sigmas(x))
 
@@ -44,18 +47,20 @@ class FlexNN(nn.Module):
 class FlexRNN(nn.Module):
     """Class to generate dynamically a recurrent neural network."""
 
-    def __init__(self, input_size, hidden_size, output_size):
+    def __init__(self, input_size, output_size, hidden_size, num_layers):
 
         super().__init__()
 
         # NOTE: for rnn the states should not include time information
         self.input_size = input_size - 1
+        self.output_size = output_size
         self.hidden_size = hidden_size
-        self.cell = nn.LSTMCell(self.input_size, self.hidden_size)
+        self.num_layers = num_layers
 
+        self.cell = nn.LSTM(self.input_size, self.hidden_size, num_layers=self.num_layers)
         # mean and standar deviation for each output dimension
-        self.out_means = nn.Linear(hidden_size, output_size)
-        self.out_sigmas = nn.Linear(hidden_size, output_size)
+        self.out_means = nn.Linear(self.hidden_size, self.output_size)
+        self.out_sigmas = nn.Linear(self.hidden_size, self.output_size)
 
     def forward(self, inputs, hidden_state=None):
 
@@ -63,25 +68,16 @@ class FlexRNN(nn.Module):
             len(inputs) == self.input_size + 1
         ), "states should have time added at the end for convenience, it will be dropped automatically"
 
-        timeless_inputs = inputs[:-1].unsqueeze(0) # reshape for batch size = 1
+        # reshape for seq_len, batch = 1, 1
+        timeless_inputs = inputs[:-1].view(1, 1, -1)
 
-        if hidden_state is None:
-            # set initial hidden states
-            h0 = torch.randn(1, self.hidden_size)
-            c0 = torch.randn(1, self.hidden_size)
-            hidden_state = (h0, c0)
-
-        h1, c1 = self.cell(timeless_inputs, hidden_state)  # FIXME!!!
+        output, hidden_state = self.cell(timeless_inputs, hidden_state)
 
         # NOTE: restrictions for Beta distribution
+        means = 5 * torch.sigmoid(self.out_means(output.squeeze()))
+        sigmas = 2.5 * torch.sigmoid(self.out_sigmas(output.squeeze()))
 
-        # var(X) = 1/12 if X ~ Beta(1,1) ~ U(0,1)
-        # max var(X) = 1/4 for X ~ Beta with support [0, 1]
-        # max std(X) = 5/2 for X ~ Beta with support [0, 5]
-        means = 5 * torch.sigmoid(self.out_means(h1))
-        sigmas = 2.5 * torch.sigmoid(self.out_sigmas(h1))
-
-        return (means, sigmas), (h1, c1)
+        return (means, sigmas), hidden_state
 
 
 def neural_policy(states_dim, actions_dim, layers_size, num_layers):

@@ -36,11 +36,11 @@ integration_specs = {
 # define policy network
 states_dim = 3
 actions_dim = 2
-hidden_layers = 2
+num_layers = 2
 layers_size = 25
 
-# policy = neural_policy(states_dim, actions_dim, layers_size, hidden_layers)
-policy = FlexRNN(states_dim, layers_size, actions_dim)
+# policy = neural_policy(states_dim, actions_dim, layers_size, num_layers)
+policy = FlexRNN(states_dim, actions_dim, layers_size, num_layers)
 
 # -----------------------------------------------------------------------------------------
 #                                         PRETRAINING
