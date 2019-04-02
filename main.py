@@ -2,7 +2,6 @@ from os.path import join
 
 # import ray
 import torch
-import torch.optim as optim
 
 from integrator import SimpleModel, ComplexModel
 from policies import FlexNN, FlexRNN, shift_grad_tracking

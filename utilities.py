@@ -12,13 +12,7 @@ from torch import Tensor
 from torch.distributions import Beta, TransformedDistribution
 from torch.distributions.transforms import AffineTransform
 
-from integrator import SimpleModel
-from plots import (
-    plot_episode_states,
-    plot_sampled_actions,
-    plot_sampled_biactions,
-    plot_reward_evolution,
-)
+from plots import plot_sampled_actions, plot_sampled_biactions, plot_reward_evolution
 
 eps = np.finfo(np.float32).eps.item()
 
@@ -28,6 +22,7 @@ def iterable(controls):
     if isinstance(controls, Number):
         return (controls,)
     return controls
+
 
 def forge_distribution(mean, sigma, lower_limit=0.0, upper_limit=5.0):
     """
@@ -134,7 +129,7 @@ def pretraining(
         integrated_state = integration_specs["initial_state"]
 
         # each step of this episode
-        hidden_state=None
+        hidden_state = None
         for ind, _ in enumerate(integration_specs["time_points"]):
 
             # current state tracked container
@@ -163,60 +158,14 @@ def pretraining(
         # optimize policy
         def closure():
             optimizer.zero_grad()
-            loss = (
-                criterion(objective_controls, predicted_controls) +
-                criterion(objective_deviations, predicted_deviations)
+            loss = criterion(objective_controls, predicted_controls) + criterion(
+                objective_deviations, predicted_deviations
             )
             print("iteration:", iteration, "\t loss:", loss.item())
             loss.backward()
             return loss
+
         optimizer.step(closure)
-
-
-
-def plot_episode(
-    model, policy, integration_specs, objective=None, show=True, store_path=None
-):
-    """Compute a single episode of the given policy and plot it."""
-
-    container = [None for i in integration_specs["time_points"]]
-    y1 = container.copy()
-    y2 = container.copy()
-    U = container.copy()
-
-    # define initial conditions
-    t = integration_specs["ti"]
-    integrated_state = integration_specs["initial_state"]
-
-    hidden_state = None
-    for ind, _ in enumerate(integration_specs["time_points"]):
-
-        timed_state = Tensor((*integrated_state, integration_specs["tf"] - t))
-        (means, sigmas), hidden_state = policy(timed_state, hidden_state=hidden_state)
-
-        controls, _ = sample_actions(means, sigmas)
-
-        integration_time = integration_specs["subinterval"]
-        integrated_state = model.integrate(
-            controls, integrated_state, integration_time, initial_time=t
-        )
-
-        # TODO: generalize plotting for multiple controls
-        y1[ind] = integrated_state[0]
-        y2[ind] = integrated_state[1]
-        U[ind] = controls[0]  # FIXME: please!
-
-        t = t + integration_time
-
-    plot_episode_states(
-        integration_specs["time_points"],
-        y1,
-        y2,
-        U,
-        show=show,
-        store_path=store_path,
-        objective=objective,
-    )
 
 
 # @ray.remote
@@ -378,12 +327,7 @@ def sample_episodes_ppo(
 
 
 def training(
-    model,
-    policy,
-    integration_specs,
-    opt_specs,
-    record_graphs=False,
-    model_id=None,
+    model, policy, integration_specs, opt_specs, record_graphs=False, model_id=None
 ):
     """Run the full episodic training schedule."""
 
@@ -454,7 +398,7 @@ def training(
 
         for _ in range(opt_specs["epochs"]):
 
-            optimizer.zero_grad() # FIXME: should this be outside of the loop??
+            optimizer.zero_grad()  # FIXME: should this be outside of the loop??
             surrogate_mean.backward(retain_graph=True)
             optimizer.step()
 
