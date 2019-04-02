@@ -5,7 +5,7 @@ import torch
 import torch.optim as optim
 
 from integrator import SimpleModel, ComplexModel
-from policies import neural_policy, shift_grad_tracking, FlexRNN
+from policies import FlexNN, FlexRNN, shift_grad_tracking
 from utilities import pretraining, training
 
 # ray.init()  # this needs to be run on main script... not modules
@@ -39,7 +39,7 @@ actions_dim = 2
 num_layers = 2
 layers_size = 25
 
-# policy = neural_policy(states_dim, actions_dim, layers_size, num_layers)
+# policy = FlexNN(states_dim, actions_dim, layers_size, num_layers)
 policy = FlexRNN(states_dim, actions_dim, layers_size, num_layers)
 
 # -----------------------------------------------------------------------------------------
@@ -75,12 +75,9 @@ opt_specs = {
     "epochs": 1,
 }
 
-optimizer = optim.Adam(policy.parameters(), lr=opt_specs["learning_rate"])
-
 training(
     model,
     policy,
-    optimizer,
     integration_specs,
     opt_specs,
     record_graphs=True,
@@ -99,14 +96,12 @@ shift_grad_tracking(policy.out_means, True)
 shift_grad_tracking(policy.out_sigmas, True)
 
 # define new parameters
-opt_specs.update({"iterations": 100, "learning_rate": 1e-1})
-new_optimizer = optim.Adam(policy.parameters(), lr=opt_specs["learning_rate"])
+opt_specs.update({"iterations": 100, "learning_rate": 1e-2})
 
 # retrain last layers
 training(
     new_model,
     policy,
-    new_optimizer,
     integration_specs,
     opt_specs,
     record_graphs=True,

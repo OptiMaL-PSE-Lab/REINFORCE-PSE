@@ -380,7 +380,6 @@ def sample_episodes_ppo(
 def training(
     model,
     policy,
-    optimizer,
     integration_specs,
     opt_specs,
     record_graphs=False,
@@ -423,6 +422,8 @@ def training(
         {opt_specs['episode_batch']} sampled episodes each!
         """
     )
+
+    optimizer = optim.Adam(policy.parameters(), lr=opt_specs["learning_rate"])
 
     for iteration in range(opt_specs["iterations"]):
 
