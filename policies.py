@@ -83,9 +83,3 @@ class FlexRNN(nn.Module):
         sigmas = 2.5 * torch.sigmoid(self.out_sigmas(output.squeeze()))
 
         return (means, sigmas), hidden_state
-
-
-def shift_grad_tracking(torch_object, track):
-    for param in torch_object.parameters():
-        param.requires_grad = track
-

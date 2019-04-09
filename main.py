@@ -4,8 +4,8 @@ from os.path import join
 import torch
 
 from integrator import SimpleModel, ComplexModel
-from policies import FlexNN, FlexRNN, shift_grad_tracking
-from utilities import pretraining, training
+from policies import FlexNN, FlexRNN
+from utilities import pretraining, training, shift_grad_tracking
 
 # ray.init()  # this needs to be run on main script... not modules
 torch.manual_seed(3_141_592)
@@ -59,7 +59,7 @@ pretraining(
     desired_deviation,
     integration_specs,
     learning_rate=0.1,
-    iterations=200,
+    iterations=190,
 )
 
 # -----------------------------------------------------------------------------------------

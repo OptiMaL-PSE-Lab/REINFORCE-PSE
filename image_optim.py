@@ -5,6 +5,8 @@
 from pathlib import Path
 import glob
 
+# might be interesting to use aiohttp instead (just to learn)
+# https://docs.aiohttp.org/en/stable/client_quickstart.html#post-a-multipart-encoded-file
 import requests
 
 OPTIONS = "format=webm"  # comma-separated options
