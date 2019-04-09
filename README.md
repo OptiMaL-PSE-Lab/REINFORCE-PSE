@@ -70,22 +70,14 @@ Parameters (inside `main.py`):
 
 ### Evolution of action distributions of sampled episodes
 
-* Simple model
+<img src="https://i.imgur.com/HMf0out.mp4" alt="Simple model" align="middle">
 
-<img src="https://i.imgur.com/HMf0out.mp4" width="900" height="400" align="middle">
-
-* Complex model (via transfer learning)
-
-<img src="https://i.imgur.com/J7NE5o1.mp4" width="900" height="400" align="middle">
+<img src="https://i.imgur.com/J7NE5o1.mp4" alt="Complex model (via transfer learning)" align="middle">
 
 ### Reward evolution
 
-* Simple model
+<img src="https://i.imgur.com/AME2Gyz.mp4" alt="Simple model" align="middle">
 
-<img src="https://i.imgur.com/AME2Gyz.mp4" width="900" height="400" align="middle">
-
-* Complex model (via transfer learning)
-
-<img src="https://i.imgur.com/t9RiibJ.mp4" alt="Action Probability Distribution" width="900" height="400" align="middle">
+<img src="https://i.imgur.com/t9RiibJ.mp4" alt="Complex model (via transfer learning)" align="middle">
 
 **Kudos**: gifs made with the blazing-fast [gifski](https://github.com/ImageOptim/gifski) and transformed via [ImageOptim API](https://imageoptim.com/api/ungif)!
