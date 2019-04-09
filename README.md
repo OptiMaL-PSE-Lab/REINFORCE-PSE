@@ -1,66 +1,91 @@
 # Reinforcement Learning for batch processes optimization
 
-The basic idea is the usage of reinforcement learning techniques to optimize the controls
-taken over a chemical system evolution to optimize the outcome of certain variables.
-Current models of batch processes are ODE systems with certain free parameters as controls.
+We use reinforcement learning techniques to optimize continuum controls over chemical systems
+modelled via ODE systems. The controls are free parameters of the ODE system and the reward
+is a variable of the system, which represents a byproduct of the chemical reaction over time.
 
-## Systems modelled
+## Surrogate ODE systems
 
-We model processes approximated analytically with ODE systems.
+ODE systems represent a surrogate approximation of real-word chemical systems.
+Closer approximations to reality involve more complex surrogate models.
+Here we study an approach to optimize the controls of a system over a simple ODE model to later ease the study of optimal controls over a more complex yet closely related ODE model.
 
-* Find the optimal control $`U(t) \in [0,5]`$ over the time span $`t = (0,1)`$
-    that maximizes the final value of $`y_2`$.
+The objective is to find the optimal controls $`U_1(t)`$ and $`U_2(t)`$ contrained to the interval $`[0,5]`$ that maximize the final value of the byproduct $`y_2`$ over the time span $`t \in (0, 1)`$.
 
-    $`\dot{y_1} = -(U + U^2 a) y_1`$,
+The initial conditions are fixed: $`y_1 = 1`$, $`y_2 = 0`$
 
-    $`\dot{y_2} = U b y_1`$
+### Simple system
 
-    From the initial condition $`y_1 = 1`$, $`y_2 = 0`$
-    and with parameters $`a = 1/2`$, $`b = 1`$.
+$` \dot{y_1} = -(U_1 + a  U_1 ^ 2)  y_1 + d  U_2 `$
 
-## Implementation
+$` \dot{y_2} = (b  U_1 - c  U_2)  y_1 `$
 
-* The evolution of the model between subsequent states corresponds to the integration of the
-    ODE system over a fixed fraction of time.
-* Each state is composed of the current model variables and the remaining time of the process.
-* Policies take states and return the mean and variance of a probability distribution over
-  the possible continuous actions available at each time.
-  * A affine Beta probability distribution is used to deal with constrained continuous actions.
-* Gradient policy methods are used to optimize stochastic policies results.
-  Several episode samples are needed to build the loss function to optimize over.
+**Parameters**: $` a, b, c, d = 0.5, 1.0, 0.7, 0.5 `$
+
+### Complex system
+
+$` \dot{y_1} = -(U_1 + a  U_2 ^ 2)  y_1 + d  U_2  y_2 / (y_1 + y_2) `$
+
+$` \dot{y_2} = (b  U_1 - c  U_2)  y_1 `$
+
+**Parameters**: $` a, b, c, d = 0.5, 1.0, 1.0, 1.0 `$
+
+## Policy gradients
+
+We use the classic REINFORCE policy gradient algorithm and the recent Proximal Policy Optimization (PPO) variation to optimize the controls via stochastic sampling of trayectories.
+We use stochastic continuum distributions to deal with continuum controls.
+In particular, we use the Beta distribution to enforce interval constraints over the controls.
+
+## Implementation details
+
+* The evolution of the model between subsequent states corresponds to the integration of the ODE system over a fixed fraction of time.
+* Each state is composed of the current model variables.
+* Policies take states and return the mean and variance of a probability distribution over the possible continuous actions available at each time.
+  * An affine Beta distribution over the acceptable interval $`U \in [0,5]`$.
+* Not too deep Neural Networks serve as policies.
+  * Simple Neural Networks include in the states the time left.
+  * Recurrent Neural Nerwoks take previous hidden steates instead.
+* Several sampled episodes are needed to estimate the loss function to be optimized.
   * REINFORCE algorithm with mean reward baseline.
   * PPO with deviation from mean reward as advantage function.
 
-## Usage
+Transfer learning techniques help to leverage the inner weights if the policy learned in the simpler model to ease the training needed for the related but more complex model.
 
-Run `python main.py`, it prints to console the current reward and
-stores the relevant profiles in a `./figures/` subdirectory (not tracked via git).
+## Code execution
 
-Parameters:
+Run `python main.py` to execute the whole logic:
+
+* Pretrain policy to linearly increasing controls over time.
+* Train policy for large iterations over simpler model.
+* Freeze inner weights of policies and retrain last layers with complex model with fewer iterations.
+
+Current reward is printed over console and relevant profiles are stored in a `./figures/` subdirectory.
+
+Parameters (inside `main.py`):
 
 * method: 'ppo' or 'reinforce'
 * episode_batch: number of sample episodes run to estimate loss function
-* epochs: gradient descent steps taken after episode sampling (just 1 for REINFORCE)
-* iterations: sampling-optimizing repetitions
+* epochs: gradient descent steps taken after episode sampling (usually 1 for REINFORCE and ~5 for PPO)
+* iterations: repetitions of sampling and optimize step
+
+### Evolution of action distributions of sampled episodes
+
+* Simple model
+
+<img src="https://i.imgur.com/HMf0out.mp4" width="900" height="400" align="middle">
+
+* Complex model (via transfer learning)
+
+<img src="https://i.imgur.com/J7NE5o1.mp4" width="900" height="400" align="middle">
 
 ### Reward evolution
 
-* REINFORCE
+* Simple model
 
-<img src="https://i.imgur.com/3BQDNKp.png"  width="600" height="400">
+<img src="https://i.imgur.com/AME2Gyz.mp4" width="900" height="400" align="middle">
 
-* PPO
+* Complex model (via transfer learning)
 
-<img src="https://i.imgur.com/65JxgQ1.png"  width="600" height="400">
+<img src="https://i.imgur.com/t9RiibJ.mp4" alt="Action Probability Distribution" width="900" height="400" align="middle">
 
-### Action distributions of sampled episodes
-
-* REINFORCE
-
-<img src="https://i.imgur.com/DMOoLJc.gif" alt="Action Probability Distribution" width="1000" height="500" align="middle">
-
-* PPO
-
-<img src="https://i.imgur.com/ECyvYGz.gif" alt="Action Probability Distribution" width="1000" height="500" align="middle">
-
-**Kudos**: gifs made with the blazing-fast [gifski](https://github.com/ImageOptim/gifski)!
+**Kudos**: gifs made with the blazing-fast [gifski](https://github.com/ImageOptim/gifski) and transformed via [ImageOptim API](https://imageoptim.com/api/ungif)!
