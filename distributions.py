@@ -51,8 +51,9 @@ def sample_actions(means, sigmas):
 
 def get_log_prob(means, sigmas, controls):
     """
-    Forge the corresponding distributions for the given means and sigmas
-    and calculate the log probability of the given controls for thos distributions.
+    Forge the corresponding distributions for each of the given means and sigmas, 
+    calculate the log probability of the given controls for each distributions
+    and return the sum of all log probabilities.
     """
     sum_log_prob = 0.0
     for ind, (mean, sigma) in enumerate(zip(means, sigmas)):

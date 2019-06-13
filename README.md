@@ -44,7 +44,7 @@ In particular, we use the Beta distribution to enforce interval constraints over
   * An affine Beta distribution over the acceptable interval $`U \in [0,5]`$.
 * Not too deep Neural Networks serve as policies.
   * Simple Neural Networks include in the states the time left.
-  * Recurrent Neural Nerwoks take previous hidden steates instead.
+  * Recurrent Neural Netwoks take previous hidden states instead.
 * Several sampled episodes are needed to estimate the loss function to be optimized.
   * REINFORCE algorithm with mean reward baseline.
   * PPO with deviation from mean reward as advantage function.
@@ -55,7 +55,7 @@ Transfer learning techniques help to leverage the inner weights if the policy le
 
 Run `python main.py` to execute the whole logic:
 
-* Pretrain policy to linearly increasing controls over time.
+* Pretrain policy with linearly increasing controls over time.
 * Train policy for large iterations over simpler model.
 * Freeze inner weights of policies and retrain last layers with complex model with fewer iterations.
 

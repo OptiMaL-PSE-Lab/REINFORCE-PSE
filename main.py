@@ -1,14 +1,12 @@
 from os.path import join
 
 # import ray
-import torch
 
 from integrator import SimpleModel, ComplexModel
 from policies import FlexNN, FlexRNN
 from utilities import pretraining, training, shift_grad_tracking
 
 # ray.init()  # this needs to be run on main script... not modules
-torch.manual_seed(3_141_592)
 
 # -----------------------------------------------------------------------------------------
 #                                     MODEL SPECIFICATIONS
@@ -23,7 +21,7 @@ divisions = 20
 subinterval = (tf - ti) / divisions
 time_points = [ti + div * subinterval for div in range(divisions)]
 
-integration_specs = {
+integration_config = {
     "initial_state": (1, 0),
     "ti": ti,
     "tf": tf,
@@ -57,7 +55,7 @@ pretraining(
     policy,
     desired_controls,
     desired_deviation,
-    integration_specs,
+    integration_config,
     learning_rate=0.1,
     iterations=190,
 )
@@ -66,7 +64,7 @@ pretraining(
 #                                          TRAINING
 # -----------------------------------------------------------------------------------------
 
-opt_specs = {
+optim_config = {
     "iterations": 200,
     "episode_batch": 100,
     "learning_rate": 5e-3,
@@ -77,8 +75,8 @@ opt_specs = {
 training(
     model,
     policy,
-    integration_specs,
-    opt_specs,
+    integration_config,
+    optim_config,
     record_graphs=True,
     model_id="simple",
 )
@@ -95,14 +93,14 @@ shift_grad_tracking(policy.out_means, True)
 shift_grad_tracking(policy.out_sigmas, True)
 
 # define new parameters
-opt_specs.update({"iterations": 100, "learning_rate": 1e-2})
+optim_config.update({"iterations": 100, "learning_rate": 1e-2})
 
 # retrain last layers
 training(
     new_model,
     policy,
-    integration_specs,
-    opt_specs,
+    integration_config,
+    optim_config,
     record_graphs=True,
     model_id="complex",
 )

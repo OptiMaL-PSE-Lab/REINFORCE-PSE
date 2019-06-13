@@ -1,3 +1,4 @@
+import sys
 import os
 from os.path import join
 import copy
@@ -13,8 +14,9 @@ from torch import Tensor
 from distributions import sample_actions, get_log_prob
 from plots import plot_sampled_actions, plot_sampled_biactions, plot_reward_evolution
 
+random_seed = np.random.randint(sys.maxsize) # maxsize = 2**63 - 1
+torch.manual_seed(random_seed) 
 eps = np.finfo(np.float32).eps.item()
-
 
 def iterable(controls):
     """Wrap control(s) in a iterable container."""
@@ -24,6 +26,7 @@ def iterable(controls):
 
 
 def shift_grad_tracking(torch_object, track):
+    """Set tracking flag for each parameter of torch object."""
     for param in torch_object.parameters():
         param.requires_grad = track
 
@@ -33,7 +36,7 @@ def pretraining(
     policy,
     objective_controls,
     objective_deviation,
-    integration_specs,
+    integration_config,
     learning_rate,
     iterations,
 ):
@@ -56,12 +59,12 @@ def pretraining(
     objective_deviations = torch.tensor(
         [
             (objective_deviation,) * num_controls
-            for _ in integration_specs["time_points"]
+            for _ in integration_config["time_points"]
         ]
     )
 
     # predictions containers
-    empty_list = [None for _ in integration_specs["time_points"]]
+    empty_list = [None for _ in integration_config["time_points"]]
 
     predictions = empty_list.copy()
     uncertainties = empty_list.copy()
@@ -70,15 +73,15 @@ def pretraining(
     for iteration in range(iterations):
 
         # define starting points at each episode
-        t = integration_specs["ti"]
-        integrated_state = integration_specs["initial_state"]
+        t = integration_config["ti"]
+        integrated_state = integration_config["initial_state"]
 
         # each step of this episode
         hidden_state = None
-        for ind, _ in enumerate(integration_specs["time_points"]):
+        for ind, _ in enumerate(integration_config["time_points"]):
 
             # current state tracked container
-            time_left = integration_specs["tf"] - t
+            time_left = integration_config["tf"] - t
             state = Tensor((*integrated_state, time_left))  # add time pending to state
 
             # continuous policy prediction
@@ -89,7 +92,7 @@ def pretraining(
 
             # follow objective integration trajectory
             controls = iterable(objective_controls[ind])
-            integration_time = integration_specs["subinterval"]
+            integration_time = integration_config["subinterval"]
 
             integrated_state = model.integrate(
                 controls, integrated_state, integration_time, initial_time=t
@@ -114,24 +117,24 @@ def pretraining(
 
 
 # @ray.remote
-def episode_reinforce(model, policy, integration_specs, action_recorder=None):
+def episode_reinforce(model, policy, integration_config, action_recorder=None):
     """Compute a single episode given a policy and track useful quantities for learning."""
 
     # define initial conditions
-    t = integration_specs["ti"]
-    integrated_state = integration_specs["initial_state"]
+    t = integration_config["ti"]
+    integrated_state = integration_config["initial_state"]
 
     sum_log_probs = 0.0
     hidden_state = None
-    for time_point in integration_specs["time_points"]:
+    for time_point in integration_config["time_points"]:
 
-        timed_state = Tensor((*integrated_state, integration_specs["tf"] - t))
+        timed_state = Tensor((*integrated_state, integration_config["tf"] - t))
         (means, sigmas), hidden_state = policy(timed_state, hidden_state=hidden_state)
         controls, sum_log_prob = sample_actions(means, sigmas)
 
         sum_log_probs = sum_log_probs + sum_log_prob
 
-        integration_time = integration_specs["subinterval"]
+        integration_time = integration_config["subinterval"]
 
         t = t + integration_time
         integrated_state = model.integrate(
@@ -147,19 +150,19 @@ def episode_reinforce(model, policy, integration_specs, action_recorder=None):
 
 # @ray.remote
 def episode_ppo(
-    model, policy, integration_specs, policy_old=None, action_recorder=None
+    model, policy, integration_config, policy_old=None, action_recorder=None
 ):
     """Compute a single episode given a policy and track useful quantities for learning."""
 
     # define initial conditions
-    t = integration_specs["ti"]
-    integrated_state = integration_specs["initial_state"]
+    t = integration_config["ti"]
+    integrated_state = integration_config["initial_state"]
 
     prob_ratios = []
     hidden_state = None
-    for time_point in integration_specs["time_points"]:
+    for time_point in integration_config["time_points"]:
 
-        timed_state = Tensor((*integrated_state, integration_specs["tf"] - t))
+        timed_state = Tensor((*integrated_state, integration_config["tf"] - t))
         (means, sigmas), hidden_state = policy(timed_state, hidden_state=hidden_state)
         controls, log_prob = sample_actions(means, sigmas)
 
@@ -174,7 +177,7 @@ def episode_ppo(
         prob_ratio = (log_prob - log_prob_old).exp()
         prob_ratios.append(prob_ratio)
 
-        integration_time = integration_specs["subinterval"]
+        integration_time = integration_config["subinterval"]
 
         t = t + integration_time
         integrated_state = model.integrate(
@@ -189,7 +192,7 @@ def episode_ppo(
 
 
 def sample_episodes_reinforce(
-    model, policy, sample_size, integration_specs, action_recorder=None
+    model, policy, sample_size, integration_config, action_recorder=None
 ):
     """
     Executes multiple episodes under the current stochastic policy,
@@ -202,12 +205,12 @@ def sample_episodes_reinforce(
 
     # NOTE: https://github.com/ray-project/ray/issues/2456
     # direct policy serialization loses the information of the tracked gradients...
-    # samples = [run_episode.remote(policy, integration_specs) for epi in range(sample_size)]
+    # samples = [run_episode.remote(policy, integration_config) for epi in range(sample_size)]
 
     for epi in range(sample_size):
         # reward, sum_log_prob = ray.get(samples[epi])
         reward, sum_log_prob = episode_reinforce(
-            model, policy, integration_specs, action_recorder=action_recorder
+            model, policy, integration_config, action_recorder=action_recorder
         )
         rewards[epi] = reward
         sum_log_probs[epi] = sum_log_prob
@@ -228,7 +231,7 @@ def sample_episodes_ppo(
     model,
     policy,
     sample_size,
-    integration_specs,
+    integration_config,
     policy_old=None,
     epsilon=0.3,
     action_recorder=None,
@@ -246,7 +249,7 @@ def sample_episodes_ppo(
         reward, prob_ratios_episode = episode_ppo(
             model,
             policy,
-            integration_specs,
+            integration_config,
             policy_old=policy_old,
             action_recorder=action_recorder,
         )
@@ -272,13 +275,13 @@ def sample_episodes_ppo(
 
 
 def training(
-    model, policy, integration_specs, opt_specs, record_graphs=False, model_id=None
+    model, policy, integration_config, optim_config, record_graphs=False, model_id=None
 ):
     """Run the full episodic training schedule."""
 
     assert model_id != None, "please provide the model_id keyword"
     assert (
-        opt_specs["method"] == "reinforce" or opt_specs["method"] == "ppo"
+        optim_config["method"] == "reinforce" or optim_config["method"] == "ppo"
     ), "methods supported: reinforce and ppo"
 
     # prepare directories for results
@@ -288,9 +291,9 @@ def training(
             "figures",
             (
                 f"policy_{policy.__class__.__name__}_"
-                f"method_{opt_specs['method']}_"
-                f"batch_{opt_specs['episode_batch']}_"
-                f"iter_{opt_specs['iterations']}"
+                f"method_{optim_config['method']}_"
+                f"batch_{optim_config['episode_batch']}_"
+                f"iter_{optim_config['iterations']}"
             ),
         )
         os.makedirs(plots_dir)
@@ -300,48 +303,48 @@ def training(
 
     if record_graphs:
         action_recorder = {
-            time_point: [] for time_point in integration_specs["time_points"]
+            time_point: [] for time_point in integration_config["time_points"]
         }
     else:
         action_recorder = None
 
     print(
         f"""
-        Training for {opt_specs['iterations']} iterations of
-        {opt_specs['episode_batch']} sampled episodes each!
+        Training for {optim_config['iterations']} iterations of
+        {optim_config['episode_batch']} sampled episodes each!
         """
     )
 
-    optimizer = optim.Adam(policy.parameters(), lr=opt_specs["learning_rate"])
+    optimizer = optim.Adam(policy.parameters(), lr=optim_config["learning_rate"])
 
-    for iteration in range(opt_specs["iterations"]):
+    for iteration in range(optim_config["iterations"]):
 
-        if opt_specs["method"] == "reinforce":
+        if optim_config["method"] == "reinforce":
             surrogate_mean, reward_mean, reward_std = sample_episodes_reinforce(
                 model,
                 policy,
-                opt_specs["episode_batch"],
-                integration_specs,
+                optim_config["episode_batch"],
+                integration_config,
                 action_recorder=action_recorder,
             )
-        elif opt_specs["method"] == "ppo":
+        elif optim_config["method"] == "ppo":
             if iteration == 0:
                 policy_old = None
 
             surrogate_mean, reward_mean, reward_std = sample_episodes_ppo(
                 model,
                 policy,
-                opt_specs["episode_batch"],
-                integration_specs,
+                optim_config["episode_batch"],
+                integration_config,
                 policy_old=policy_old,
                 action_recorder=action_recorder,
             )
 
         # maximize expected surrogate function
-        if opt_specs["method"] == "ppo":
+        if optim_config["method"] == "ppo":
             policy_old = copy.deepcopy(policy)
 
-        for _ in range(opt_specs["epochs"]):
+        for _ in range(optim_config["epochs"]):
 
             optimizer.zero_grad()  # FIXME: should this be outside of the loop??
             surrogate_mean.backward(retain_graph=True)
@@ -359,7 +362,7 @@ def training(
             plot_name = (
                 f"action_distribution_"
                 f"id_{model_id}_"
-                f"lr_{opt_specs['learning_rate']}_"
+                f"lr_{optim_config['learning_rate']}_"
                 f"iteration_{iteration:03d}.png"
             )
             if model.controls_dims == 2:
@@ -379,17 +382,17 @@ def training(
 
     # NOTE: separated to have all rewards accesible to tune ylims accordingly
     if record_graphs:
-        for iteration in range(opt_specs["iterations"]):
+        for iteration in range(optim_config["iterations"]):
             plot_name = (
                 f"reward_"
                 f"id_{model_id}_"
-                f"lr_{opt_specs['learning_rate']}_"
+                f"lr_{optim_config['learning_rate']}_"
                 f"iteration_{iteration:03d}.png"
             )
             plot_reward_evolution(
                 reward_recorder,
                 iteration,
-                opt_specs,
+                optim_config,
                 show=False,
                 store_path=join(plots_dir, plot_name),
             )
