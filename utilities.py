@@ -11,11 +11,11 @@ import torch.nn as nn
 import torch.optim as optim
 from torch import Tensor
 
-from distributions import sample_actions, get_log_prob
+from distributions import sample_actions, retrieve_sum_log_prob
 from plots import plot_sampled_actions, plot_sampled_biactions, plot_reward_evolution
 
 random_seed = np.random.randint(sys.maxsize) # maxsize = 2**63 - 1
-torch.manual_seed(random_seed) 
+torch.manual_seed(random_seed)
 eps = np.finfo(np.float32).eps.item()
 
 def iterable(controls):
@@ -115,8 +115,6 @@ def pretraining(
 
         optimizer.step(closure)
 
-
-# @ray.remote
 def episode_reinforce(model, policy, integration_config, action_recorder=None):
     """Compute a single episode given a policy and track useful quantities for learning."""
 
@@ -164,17 +162,17 @@ def episode_ppo(
 
         timed_state = Tensor((*integrated_state, integration_config["tf"] - t))
         (means, sigmas), hidden_state = policy(timed_state, hidden_state=hidden_state)
-        controls, log_prob = sample_actions(means, sigmas)
+        controls, sum_log_prob = sample_actions(means, sigmas)
 
         # NOTE: probability of same action under older distribution
         #       avoid tracked gradients in old policy
         if policy_old is None or policy_old == policy:
-            log_prob_old = log_prob
+            sum_log_prob_old = sum_log_prob
         else:
             means_old, sigmas_old = policy_old(timed_state)
-            log_prob_old = get_log_prob(means_old, sigmas_old, controls)
+            sum_log_prob_old = retrieve_sum_log_prob(means_old, sigmas_old, controls)
 
-        prob_ratio = (log_prob - log_prob_old).exp()
+        prob_ratio = (sum_log_prob - sum_log_prob_old).exp()
         prob_ratios.append(prob_ratio)
 
         integration_time = integration_config["subinterval"]
@@ -202,10 +200,6 @@ def sample_episodes_reinforce(
 
     rewards = [None for _ in range(sample_size)]
     sum_log_probs = [None for _ in range(sample_size)]
-
-    # NOTE: https://github.com/ray-project/ray/issues/2456
-    # direct policy serialization loses the information of the tracked gradients...
-    # samples = [run_episode.remote(policy, integration_config) for epi in range(sample_size)]
 
     for epi in range(sample_size):
         # reward, sum_log_prob = ray.get(samples[epi])
@@ -296,7 +290,7 @@ def training(
                 f"iter_{optim_config['iterations']}"
             ),
         )
-        os.makedirs(plots_dir)
+        os.makedirs(plots_dir, exist_ok=True)  # FIXME: remove exists_ok
 
     reward_recorder = []
     rewards_std_record = []

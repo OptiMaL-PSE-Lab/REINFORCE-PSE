@@ -49,7 +49,7 @@ def sample_actions(means, sigmas):
     return actions, sum_log_prob
 
 
-def get_log_prob(means, sigmas, controls):
+def retrieve_sum_log_prob(means, sigmas, controls):
     """
     Forge the corresponding distributions for each of the given means and sigmas, 
     calculate the log probability of the given controls for each distributions
