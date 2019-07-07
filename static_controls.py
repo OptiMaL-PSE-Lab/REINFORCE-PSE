@@ -6,12 +6,10 @@
 
 import random
 import itertools as it
+
 from numpy import arange
 
-
-def ceildiv(num, den):
-    "Integer ceiled division."
-    return -(-num // den)
+from utils import ceildiv, affine_transform
 
 
 def cheby_basis(x, n: int):
@@ -37,25 +35,6 @@ def random_chebys_generator(number, printer=True):
         if printer:
             print(f"Selected Chebyshev polinomial of first kind: {c} * T_{n}(x)")
         yield lambda x, c=c, n=n: c * cheby_basis(x, n)
-
-
-def affine_transform(x, original_low, original_high, desired_low, desired_high):
-    "Affine transform from interval [low_limit, high_limit] to [desired_low, desired_high]."
-
-    assert original_low <= x <= original_high, f"Value out of bounds [{original_low}, {original_high}]."
-
-    x = x - original_low
-    x = x / (original_high - original_low)
-    x = x * (desired_high - desired_low)
-    x = x + desired_low
-    return x
-
-
-def grouper(iterable, chunk_size):
-    "Consume an iterator in exclusive chunks of given size."
-    assert len(iterable) % chunk_size == 0, "Iterable length should be a multiple of chunk_size"
-    ext = [iter(iterable)] * chunk_size
-    return zip(*ext)
 
 
 def random_chebys(num_controls, time_points, zipped: bool = False):

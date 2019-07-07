@@ -2,7 +2,6 @@ import sys
 import os
 from os.path import join
 import copy
-from numbers import Number
 
 # import ray
 import numpy as np
@@ -11,6 +10,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch import Tensor
 
+from utils import iterable
 from distributions import sample_actions, retrieve_sum_log_prob
 from plots import plot_sampled_actions, plot_sampled_biactions, plot_reward_evolution
 
@@ -18,20 +18,8 @@ random_seed = np.random.randint(sys.maxsize) # maxsize = 2**63 - 1
 torch.manual_seed(random_seed)
 eps = np.finfo(np.float32).eps.item()
 
-def iterable(controls):
-    """Wrap control(s) in a iterable container."""
-    if isinstance(controls, Number):
-        return (controls,)
-    return controls
 
-
-def shift_grad_tracking(torch_object, track):
-    """Set tracking flag for each parameter of torch object."""
-    for param in torch_object.parameters():
-        param.requires_grad = track
-
-
-def pretraining(
+def pretrainer(
     model,
     policy,
     objective_controls,
@@ -268,7 +256,7 @@ def sample_episodes_ppo(
     return mean_surrogate, reward_mean, reward_std
 
 
-def training(
+def trainer(
     model, policy, integration_config, optim_config, record_graphs=False, model_id=None
 ):
     """Run the full episodic training schedule."""
@@ -290,7 +278,7 @@ def training(
                 f"iter_{optim_config['iterations']}"
             ),
         )
-        os.makedirs(plots_dir, exist_ok=True)  # FIXME: remove exists_ok
+        os.makedirs(plots_dir)
 
     reward_recorder = []
     rewards_std_record = []

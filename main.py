@@ -2,10 +2,11 @@ from os.path import join
 
 # import ray
 
+from utils import shift_grad_tracking
+from static_controls import random_chebys
 from integrator import SimpleModel, ComplexModel
 from policies import FlexNN, FlexRNN
-from utilities import pretraining, training, shift_grad_tracking
-from static_controls import random_chebys
+from training import pretrainer, trainer
 
 # ray.init()  # this needs to be run on main script... not modules
 
@@ -49,7 +50,7 @@ policy = FlexRNN(states_dim, actions_dim, layers_size, num_layers)
 desired_controls = random_chebys(2, time_points, zipped=True)
 desired_deviation = 2.0
 
-pretraining(
+pretrainer(
     model,
     policy,
     desired_controls,
@@ -71,7 +72,7 @@ optim_config = {
     "epochs": 1,
 }
 
-training(
+trainer(
     model,
     policy,
     integration_config,
@@ -95,7 +96,7 @@ shift_grad_tracking(policy.out_sigmas, True)
 optim_config.update({"iterations": 100, "learning_rate": 1e-2})
 
 # retrain last layers
-training(
+trainer(
     new_model,
     policy,
     integration_config,
