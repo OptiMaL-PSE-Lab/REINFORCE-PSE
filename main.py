@@ -5,6 +5,7 @@ from os.path import join
 from integrator import SimpleModel, ComplexModel
 from policies import FlexNN, FlexRNN
 from utilities import pretraining, training, shift_grad_tracking
+from static_controls import random_chebys
 
 # ray.init()  # this needs to be run on main script... not modules
 
@@ -45,9 +46,7 @@ policy = FlexRNN(states_dim, actions_dim, layers_size, num_layers)
 
 # pretrain policy with linearly increasing policy means and fixed standar deviation
 
-desired_controls = [
-    (div * 5 / divisions, div * 5 / divisions) for div in range(divisions)
-]
+desired_controls = random_chebys(2, time_points, zipped=True)
 desired_deviation = 2.0
 
 pretraining(
@@ -57,7 +56,7 @@ pretraining(
     desired_deviation,
     integration_config,
     learning_rate=0.1,
-    iterations=190,
+    iterations=150,
 )
 
 # -----------------------------------------------------------------------------------------
