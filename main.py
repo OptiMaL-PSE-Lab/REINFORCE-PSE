@@ -56,8 +56,8 @@ pretrainer(
     desired_controls,
     desired_deviation,
     integration_config,
-    learning_rate=0.1,
-    iterations=150,
+    learning_rate=0.01,
+    iterations=200,
 )
 
 # -----------------------------------------------------------------------------------------
