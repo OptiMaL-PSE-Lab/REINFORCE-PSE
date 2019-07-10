@@ -3,7 +3,7 @@ import numpy as np
 from torch.distributions import Beta, TransformedDistribution
 from torch.distributions.transforms import AffineTransform
 
-eps = np.finfo(np.float32).eps.item()
+from utils import EPS
 
 
 def forge_distribution(mean, sigma, lower_limit=0.0, upper_limit=5.0):
@@ -13,7 +13,7 @@ def forge_distribution(mean, sigma, lower_limit=0.0, upper_limit=5.0):
     """
     width = upper_limit - lower_limit
     assert width > 0
-    assert sigma < eps + width / 2, f"invalid std: {sigma.item()}"
+    assert sigma < EPS + width / 2, f"invalid std: {sigma.item()}"
 
     canonical_mean = (mean - lower_limit) / width
     canonical_sigma = sigma / width ** 2

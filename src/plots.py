@@ -1,4 +1,3 @@
-from os.path import join
 
 import matplotlib.pyplot as plt
 import matplotlib as mpl

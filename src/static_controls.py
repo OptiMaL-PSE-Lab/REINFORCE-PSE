@@ -28,7 +28,9 @@ def random_chebys_generator(number, printer=True):
     "Generate random first Chebyshev polinomial functions with coefficients in {-1, 1} without replacement."
     coeffs_set = {-1, 1}
     max_order = ceildiv(number, len(coeffs_set)) + 3
-    pairings = it.product(coeffs_set, range(1, max_order))  # avoid 0 order because it falls onboundary
+    pairings = it.product(
+        coeffs_set, range(1, max_order)
+    )  # avoid 0 order because it falls onboundary
     sampled = random.sample(list(pairings), number)
     for c, n in sampled:
         # https://docs.python.org/3/faq/programming.html#why-do-lambdas-defined-in-a-loop-with-different-values-all-return-the-same-result
@@ -58,6 +60,7 @@ if __name__ == "__main__":
 
     def test():
         import matplotlib.pyplot as plt
+
         time_points = arange(0, 1, 0.1)
         controls = random_chebys(2, time_points)
         for i, c in enumerate(controls):

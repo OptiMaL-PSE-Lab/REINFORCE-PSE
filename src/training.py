@@ -1,6 +1,4 @@
 import sys
-import os
-from os.path import join
 import copy
 
 # import ray
@@ -10,13 +8,12 @@ import torch.nn as nn
 import torch.optim as optim
 from torch import Tensor
 
-from utils import iterable
-from distributions import sample_actions, retrieve_sum_log_prob
+from utils import iterable, FIGURES_DIR, POLICIES_DIR
+from episodes import sample_episodes_ppo, sample_episodes_reinforce
 from plots import plot_sampled_actions, plot_sampled_biactions, plot_reward_evolution
 
-random_seed = np.random.randint(sys.maxsize) # maxsize = 2**63 - 1
+random_seed = np.random.randint(sys.maxsize)  # maxsize = 2**63 - 1
 torch.manual_seed(random_seed)
-eps = np.finfo(np.float32).eps.item()
 
 
 def pretrainer(
@@ -103,158 +100,6 @@ def pretrainer(
 
         optimizer.step(closure)
 
-def episode_reinforce(model, policy, integration_config, action_recorder=None):
-    """Compute a single episode given a policy and track useful quantities for learning."""
-
-    # define initial conditions
-    t = integration_config["ti"]
-    integrated_state = integration_config["initial_state"]
-
-    sum_log_probs = 0.0
-    hidden_state = None
-    for time_point in integration_config["time_points"]:
-
-        timed_state = Tensor((*integrated_state, integration_config["tf"] - t))
-        (means, sigmas), hidden_state = policy(timed_state, hidden_state=hidden_state)
-        controls, sum_log_prob = sample_actions(means, sigmas)
-
-        sum_log_probs = sum_log_probs + sum_log_prob
-
-        integration_time = integration_config["subinterval"]
-
-        t = t + integration_time
-        integrated_state = model.integrate(
-            controls, integrated_state, integration_time, initial_time=t
-        )
-
-        if action_recorder is not None:
-            action_recorder[time_point].append(controls)  # FIXME?
-
-    reward = integrated_state[1]
-    return reward, sum_log_probs
-
-
-# @ray.remote
-def episode_ppo(
-    model, policy, integration_config, policy_old=None, action_recorder=None
-):
-    """Compute a single episode given a policy and track useful quantities for learning."""
-
-    # define initial conditions
-    t = integration_config["ti"]
-    integrated_state = integration_config["initial_state"]
-
-    prob_ratios = []
-    hidden_state = None
-    for time_point in integration_config["time_points"]:
-
-        timed_state = Tensor((*integrated_state, integration_config["tf"] - t))
-        (means, sigmas), hidden_state = policy(timed_state, hidden_state=hidden_state)
-        controls, sum_log_prob = sample_actions(means, sigmas)
-
-        # NOTE: probability of same action under older distribution
-        #       avoid tracked gradients in old policy
-        if policy_old is None or policy_old == policy:
-            sum_log_prob_old = sum_log_prob
-        else:
-            means_old, sigmas_old = policy_old(timed_state)
-            sum_log_prob_old = retrieve_sum_log_prob(means_old, sigmas_old, controls)
-
-        prob_ratio = (sum_log_prob - sum_log_prob_old).exp()
-        prob_ratios.append(prob_ratio)
-
-        integration_time = integration_config["subinterval"]
-
-        t = t + integration_time
-        integrated_state = model.integrate(
-            controls, integrated_state, integration_time, initial_time=t
-        )
-
-        if action_recorder is not None:
-            action_recorder[time_point].append(controls)
-
-    reward = integrated_state[1]
-    return reward, prob_ratios
-
-
-def sample_episodes_reinforce(
-    model, policy, sample_size, integration_config, action_recorder=None
-):
-    """
-    Executes multiple episodes under the current stochastic policy,
-    gets an average of the reward and the summed log probabilities
-    and use them to form the baselined loss function to optimize.
-    """
-
-    rewards = [None for _ in range(sample_size)]
-    sum_log_probs = [None for _ in range(sample_size)]
-
-    for epi in range(sample_size):
-        # reward, sum_log_prob = ray.get(samples[epi])
-        reward, sum_log_prob = episode_reinforce(
-            model, policy, integration_config, action_recorder=action_recorder
-        )
-        rewards[epi] = reward
-        sum_log_probs[epi] = sum_log_prob
-
-    reward_mean = np.mean(rewards)
-    reward_std = np.std(rewards)
-
-    log_prob_R = 0.0
-    for epi in reversed(range(sample_size)):
-        baselined_reward = (rewards[epi] - reward_mean) / (reward_std + eps)
-        log_prob_R = log_prob_R - sum_log_probs[epi] * baselined_reward
-
-    mean_log_prob_R = log_prob_R / sample_size
-    return mean_log_prob_R, reward_mean, reward_std
-
-
-def sample_episodes_ppo(
-    model,
-    policy,
-    sample_size,
-    integration_config,
-    policy_old=None,
-    epsilon=0.3,
-    action_recorder=None,
-):
-    """
-    Executes multiple episodes under the current stochastic policy,
-    gets an average of the reward and the probabilities ratio between subsequent policies
-    and use them to form the surrogate loss function to optimize.
-    """
-
-    rewards = [None for _ in range(sample_size)]
-    prob_ratios = [None for _ in range(sample_size)]
-
-    for epi in range(sample_size):
-        reward, prob_ratios_episode = episode_ppo(
-            model,
-            policy,
-            integration_config,
-            policy_old=policy_old,
-            action_recorder=action_recorder,
-        )
-        rewards[epi] = reward
-        prob_ratios[epi] = prob_ratios_episode
-
-    reward_mean = np.mean(rewards)
-    reward_std = np.std(rewards)
-
-    surrogate = 0.0
-    for epi in reversed(range(sample_size)):
-
-        baselined_reward = (rewards[epi] - reward_mean) / (reward_std + eps)
-
-        for prob_ratio in prob_ratios[epi]:
-            clipped = prob_ratio.clamp(1 - epsilon, 1 + epsilon)
-            surrogate = surrogate - torch.min(
-                baselined_reward * prob_ratio, baselined_reward * clipped
-            )
-
-    mean_surrogate = surrogate / sample_size
-    return mean_surrogate, reward_mean, reward_std
-
 
 def trainer(
     model, policy, integration_config, optim_config, record_graphs=False, model_id=None
@@ -267,18 +112,14 @@ def trainer(
     ), "methods supported: reinforce and ppo"
 
     # prepare directories for results
-    os.makedirs("serializations", exist_ok=True)
     if record_graphs:
-        plots_dir = join(
-            "figures",
-            (
-                f"policy_{policy.__class__.__name__}_"
-                f"method_{optim_config['method']}_"
-                f"batch_{optim_config['episode_batch']}_"
-                f"iter_{optim_config['iterations']}"
-            ),
+        plots_dir = FIGURES_DIR / (
+            f"policy_{policy.__class__.__name__}_"
+            f"method_{optim_config['method']}_"
+            f"batch_{optim_config['episode_batch']}_"
+            f"iter_{optim_config['iterations']}"
         )
-        os.makedirs(plots_dir)
+        plots_dir.mkdir()
 
     reward_recorder = []
     rewards_std_record = []
@@ -352,14 +193,14 @@ def trainer(
                     action_recorder,
                     iteration,
                     show=False,
-                    store_path=join(plots_dir, plot_name),
+                    store_path=plots_dir / plot_name,
                 )
             else:
                 plot_sampled_actions(
                     action_recorder,
                     iteration,
                     show=False,
-                    store_path=join(plots_dir, plot_name),
+                    store_path=plots_dir / plot_name,
                 )
 
     # NOTE: separated to have all rewards accesible to tune ylims accordingly
@@ -376,8 +217,8 @@ def trainer(
                 iteration,
                 optim_config,
                 show=False,
-                store_path=join(plots_dir, plot_name),
+                store_path=plots_dir / plot_name,
             )
 
     # store trained policy
-    torch.save(policy.state_dict(), join("serializations", f"{model_id}_policy.pt"))
+    torch.save(policy.state_dict(), POLICIES_DIR / f"{model_id}_policy.pt")

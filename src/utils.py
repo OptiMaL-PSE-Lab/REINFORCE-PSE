@@ -1,6 +1,18 @@
 """Utility functions."""
 
+from pathlib import Path
 from numbers import Number
+
+import numpy as np
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+FIGURES_DIR = BASE_DIR / "figures"
+POLICIES_DIR = BASE_DIR / "policies"
+
+FIGURES_DIR.mkdir(exist_ok=True)
+POLICIES_DIR.mkdir(exist_ok=True)
+
+EPS = np.finfo(np.float32).eps.item()
 
 def ceildiv(num, den):
     "Integer ceiled division."
@@ -10,7 +22,9 @@ def ceildiv(num, den):
 def affine_transform(x, original_low, original_high, desired_low, desired_high):
     "Affine transform from interval [low_limit, high_limit] to [desired_low, desired_high]."
 
-    assert original_low <= x <= original_high, f"Value out of bounds [{original_low}, {original_high}]."
+    assert (
+        original_low <= x <= original_high
+    ), f"Value out of bounds [{original_low}, {original_high}]."
 
     x = x - original_low
     x = x / (original_high - original_low)

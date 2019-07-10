@@ -40,7 +40,9 @@ def convert_all_gifs():
             if promised != downloaded:
 
                 print(f"Truncated processing of {gif_path}")
-                print(f"Downloaded {downloaded} of {promised} bytes... Please try again!")
+                print(
+                    f"Downloaded {downloaded} of {promised} bytes... Please try again!"
+                )
                 continue
 
             with open(webm_path, "wb") as file:

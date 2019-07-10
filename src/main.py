@@ -1,5 +1,3 @@
-from os.path import join
-
 # import ray
 
 from utils import shift_grad_tracking
@@ -56,7 +54,7 @@ pretrainer(
     desired_controls,
     desired_deviation,
     integration_config,
-    learning_rate=0.01,
+    learning_rate=0.05,
     iterations=200,
 )
 
