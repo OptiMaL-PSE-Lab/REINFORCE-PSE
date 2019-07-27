@@ -21,9 +21,7 @@ def pretrainer(
     policy,
     objective_controls,
     objective_deviation,
-    integration_config,
-    learning_rate,
-    iterations,
+    config,
 ):
     """Trains parametric policy model to resemble desired starting function."""
 
@@ -37,36 +35,36 @@ def pretrainer(
 
     # training parameters
     criterion = nn.MSELoss(reduction="mean")
-    optimizer = optim.Adam(policy.parameters(), lr=learning_rate)
+    optimizer = optim.Adam(policy.parameters(), lr=config.pre_learning_rate)
 
     # use tensors to track gradients
     objective_controls = torch.tensor(objective_controls)
     objective_deviations = torch.tensor(
         [
             (objective_deviation,) * num_controls
-            for _ in integration_config["time_points"]
+            for _ in config.time_points
         ]
     )
 
     # predictions containers
-    empty_list = [None for _ in integration_config["time_points"]]
+    empty_list = [None for _ in config.time_points]
 
     predictions = empty_list.copy()
     uncertainties = empty_list.copy()
 
     # iterative fitting
-    for iteration in range(iterations):
+    for iteration in range(config.pre_iterations):
 
         # define starting points at each episode
-        t = integration_config["ti"]
-        integrated_state = integration_config["initial_state"]
+        t = config.ti
+        integrated_state = config.initial_state
 
         # each step of this episode
         hidden_state = None
-        for ind, _ in enumerate(integration_config["time_points"]):
+        for ind, _ in enumerate(config.time_points):
 
             # current state tracked container
-            time_left = integration_config["tf"] - t
+            time_left = config.tf - t
             state = Tensor((*integrated_state, time_left))  # add time pending to state
 
             # continuous policy prediction
@@ -77,7 +75,7 @@ def pretrainer(
 
             # follow objective integration trajectory
             controls = iterable(objective_controls[ind])
-            integration_time = integration_config["subinterval"]
+            integration_time = config.subinterval
 
             integrated_state = model.integrate(
                 controls, integrated_state, integration_time, initial_time=t
@@ -101,72 +99,64 @@ def pretrainer(
         optimizer.step(closure)
 
 
-def trainer(
-    model, policy, integration_config, optim_config, record_graphs=False
-):
+def trainer(model, policy, config):
     """Run the full episodic training schedule."""
 
-    assert (
-        optim_config["method"] == "reinforce" or optim_config["method"] == "ppo"
-    ), "methods supported: reinforce and ppo"
-
     # prepare directories for results
-    if record_graphs:
+    if not config.discard_graphics:
         plots_dir = FIGURES_DIR / (
             f"policy_{policy.__class__.__name__}_"
-            f"method_{optim_config['method']}_"
-            f"batch_{optim_config['episode_batch']}_"
-            f"iter_{optim_config['iterations']}"
+            f"method_{config.policy_gradient_method}_"
+            f"batch_{config.episode_batch}_"
+            f"iter_{config.iterations}"
         )
         plots_dir.mkdir()
 
     reward_recorder = []
     rewards_std_record = []
 
-    if record_graphs:
+    if not config.discard_graphics:
         action_recorder = {
-            time_point: [] for time_point in integration_config["time_points"]
+            time_point: [] for time_point in config.time_points
         }
     else:
         action_recorder = None
 
     print(
         f"""
-        Training for {optim_config['iterations']} iterations of
-        {optim_config['episode_batch']} sampled episodes each!
+        Training for {config.iterations} iterations of
+        {config.episode_batch} sampled episodes each!
         """
     )
 
-    optimizer = optim.Adam(policy.parameters(), lr=optim_config["learning_rate"])
+    optimizer = optim.Adam(policy.parameters(), lr=config.learning_rate)
 
-    for iteration in range(optim_config["iterations"]):
+    for iteration in range(config.iterations):
 
-        if optim_config["method"] == "reinforce":
+        if config.policy_gradient_method == "reinforce":
             surrogate_mean, reward_mean, reward_std = sample_episodes_reinforce(
                 model,
                 policy,
-                optim_config["episode_batch"],
-                integration_config,
+                config,
                 action_recorder=action_recorder,
             )
-        elif optim_config["method"] == "ppo":
+        elif config.policy_gradient_method == "ppo":
             if iteration == 0:
                 policy_old = None
 
             surrogate_mean, reward_mean, reward_std = sample_episodes_ppo(
                 model,
                 policy,
-                optim_config["episode_batch"],
-                integration_config,
+                config,
                 policy_old=policy_old,
                 action_recorder=action_recorder,
             )
 
         # maximize expected surrogate function
-        if optim_config["method"] == "ppo":
+        if config.policy_gradient_method == "ppo":
             policy_old = copy.deepcopy(policy)
 
-        for _ in range(optim_config["epochs"]):
+        for _ in range(config.chained_steps):
 
             optimizer.zero_grad()  # FIXME: should this be outside of the loop??
             surrogate_mean.backward(retain_graph=True)
@@ -179,12 +169,12 @@ def trainer(
         print("iteration:", iteration)
         print(f"mean reward: {reward_mean:.5} +- {reward_std:.4}")
 
-        if record_graphs:
+        if not config.discard_graphics:
 
             plot_name = (
                 f"action_distribution_"
                 f"model_{model.__class__.__name__}_"
-                f"lr_{optim_config['learning_rate']}_"
+                f"lr_{config.learning_rate}_"
                 f"iteration_{iteration:03d}.png"
             )
             if model.controls_dims == 2:
@@ -203,18 +193,18 @@ def trainer(
                 )
 
     # NOTE: separated to have all rewards accesible to tune ylims accordingly
-    if record_graphs:
-        for iteration in range(optim_config["iterations"]):
+    if not config.discard_graphics:
+        for iteration in range(config.iterations):
             plot_name = (
                 f"reward_"
                 f"model_{model.__class__.__name__}_"
-                f"lr_{optim_config['learning_rate']}_"
+                f"lr_{config.learning_rate}_"
                 f"iteration_{iteration:03d}.png"
             )
             plot_reward_evolution(
                 reward_recorder,
                 iteration,
-                optim_config,
+                config,
                 show=False,
                 store_path=plots_dir / plot_name,
             )

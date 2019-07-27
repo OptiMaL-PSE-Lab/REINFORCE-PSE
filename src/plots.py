@@ -107,16 +107,16 @@ def plot_sampled_actions(action_recorder, iteration, show=True, store_path=None)
 
 
 def plot_reward_evolution(
-    all_rewards, iteration, opt_config, show=True, store_path=None
+    all_rewards, iteration, config, show=True, store_path=None
 ):
     rewards = all_rewards[:iteration]
     plt.plot(rewards)
     plt.title(
-        f"batch size:{opt_config['episode_batch']} lr:{opt_config['learning_rate']} iteration:{iteration}"
+        f"batch size:{config.episode_batch} lr:{config.learning_rate} iteration:{iteration}"
     )
     plt.xlabel("iteration")
     plt.ylabel("reward")
-    plt.xlim(-1, opt_config["iterations"] + 1)
+    plt.xlim(-1, config.iterations + 1)
     mini = min(all_rewards)
     maxi = max(all_rewards)
     width = maxi - mini

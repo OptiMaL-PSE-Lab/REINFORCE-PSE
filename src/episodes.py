@@ -6,24 +6,24 @@ from utils import EPS
 from distributions import sample_actions, retrieve_sum_log_prob
 
 
-def episode_reinforce(model, policy, integration_config, action_recorder=None):
+def episode_reinforce(model, policy, config, action_recorder=None):
     """Compute a single episode given a policy and track useful quantities for learning."""
 
     # define initial conditions
-    t = integration_config["ti"]
-    integrated_state = integration_config["initial_state"]
+    t = config.ti
+    integrated_state = config.initial_state
 
     sum_log_probs = 0.0
     hidden_state = None
-    for time_point in integration_config["time_points"]:
+    for time_point in config.time_points:
 
-        timed_state = Tensor((*integrated_state, integration_config["tf"] - t))
+        timed_state = Tensor((*integrated_state, config.tf - t))
         (means, sigmas), hidden_state = policy(timed_state, hidden_state=hidden_state)
         controls, sum_log_prob = sample_actions(means, sigmas)
 
         sum_log_probs = sum_log_probs + sum_log_prob
 
-        integration_time = integration_config["subinterval"]
+        integration_time = config.subinterval
 
         t = t + integration_time
         integrated_state = model.integrate(
@@ -39,19 +39,19 @@ def episode_reinforce(model, policy, integration_config, action_recorder=None):
 
 # @ray.remote
 def episode_ppo(
-    model, policy, integration_config, policy_old=None, action_recorder=None
+    model, policy, config, policy_old=None, action_recorder=None
 ):
     """Compute a single episode given a policy and track useful quantities for learning."""
 
     # define initial conditions
-    t = integration_config["ti"]
-    integrated_state = integration_config["initial_state"]
+    t = config.ti
+    integrated_state = config.initial_state
 
     prob_ratios = []
     hidden_state = None
-    for time_point in integration_config["time_points"]:
+    for time_point in config.time_points:
 
-        timed_state = Tensor((*integrated_state, integration_config["tf"] - t))
+        timed_state = Tensor((*integrated_state, config.tf - t))
         (means, sigmas), hidden_state = policy(timed_state, hidden_state=hidden_state)
         controls, sum_log_prob = sample_actions(means, sigmas)
 
@@ -66,7 +66,7 @@ def episode_ppo(
         prob_ratio = (sum_log_prob - sum_log_prob_old).exp()
         prob_ratios.append(prob_ratio)
 
-        integration_time = integration_config["subinterval"]
+        integration_time = config.subinterval
 
         t = t + integration_time
         integrated_state = model.integrate(
@@ -81,7 +81,7 @@ def episode_ppo(
 
 
 def sample_episodes_reinforce(
-    model, policy, sample_size, integration_config, action_recorder=None
+    model, policy, config, action_recorder=None
 ):
     """
     Executes multiple episodes under the current stochastic policy,
@@ -89,13 +89,13 @@ def sample_episodes_reinforce(
     and use them to form the baselined loss function to optimize.
     """
 
-    rewards = [None for _ in range(sample_size)]
-    sum_log_probs = [None for _ in range(sample_size)]
+    rewards = [None for _ in range(config.episode_batch)]
+    sum_log_probs = [None for _ in range(config.episode_batch)]
 
-    for epi in range(sample_size):
+    for epi in range(config.episode_batch):
         # reward, sum_log_prob = ray.get(samples[epi])
         reward, sum_log_prob = episode_reinforce(
-            model, policy, integration_config, action_recorder=action_recorder
+            model, policy, config, action_recorder=action_recorder
         )
         rewards[epi] = reward
         sum_log_probs[epi] = sum_log_prob
@@ -104,19 +104,18 @@ def sample_episodes_reinforce(
     reward_std = np.std(rewards)
 
     log_prob_R = 0.0
-    for epi in reversed(range(sample_size)):
+    for epi in reversed(range(config.episode_batch)):
         baselined_reward = (rewards[epi] - reward_mean) / (reward_std + EPS)
         log_prob_R = log_prob_R - sum_log_probs[epi] * baselined_reward
 
-    mean_log_prob_R = log_prob_R / sample_size
+    mean_log_prob_R = log_prob_R / config.episode_batch
     return mean_log_prob_R, reward_mean, reward_std
 
 
 def sample_episodes_ppo(
     model,
     policy,
-    sample_size,
-    integration_config,
+    config,
     policy_old=None,
     epsilon=0.3,
     action_recorder=None,
@@ -127,14 +126,14 @@ def sample_episodes_ppo(
     and use them to form the surrogate loss function to optimize.
     """
 
-    rewards = [None for _ in range(sample_size)]
-    prob_ratios = [None for _ in range(sample_size)]
+    rewards = [None for _ in range(config.episode_batch)]
+    prob_ratios = [None for _ in range(config.episode_batch)]
 
-    for epi in range(sample_size):
+    for epi in range(config.episode_batch):
         reward, prob_ratios_episode = episode_ppo(
             model,
             policy,
-            integration_config,
+            config,
             policy_old=policy_old,
             action_recorder=action_recorder,
         )
@@ -145,7 +144,7 @@ def sample_episodes_ppo(
     reward_std = np.std(rewards)
 
     surrogate = 0.0
-    for epi in reversed(range(sample_size)):
+    for epi in reversed(range(config.episode_batch)):
 
         baselined_reward = (rewards[epi] - reward_mean) / (reward_std + EPS)
 
@@ -155,5 +154,5 @@ def sample_episodes_ppo(
                 baselined_reward * prob_ratio, baselined_reward * clipped
             )
 
-    mean_surrogate = surrogate / sample_size
+    mean_surrogate = surrogate / config.episode_batch
     return mean_surrogate, reward_mean, reward_std
