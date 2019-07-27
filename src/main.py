@@ -1,12 +1,9 @@
-# import ray
 
 from utils import shift_grad_tracking
 from static_controls import random_chebys
 from integrator import SimpleModel, ComplexModel
 from policies import FlexNN, FlexRNN
 from training import pretrainer, trainer
-
-# ray.init()  # this needs to be run on main script... not modules
 
 # -----------------------------------------------------------------------------------------
 #                                     MODEL SPECIFICATIONS
@@ -76,7 +73,6 @@ trainer(
     integration_config,
     optim_config,
     record_graphs=True,
-    model_id="simple",
 )
 
 # -----------------------------------------------------------------------------------------
@@ -100,5 +96,4 @@ trainer(
     integration_config,
     optim_config,
     record_graphs=True,
-    model_id="complex",
 )

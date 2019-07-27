@@ -102,11 +102,10 @@ def pretrainer(
 
 
 def trainer(
-    model, policy, integration_config, optim_config, record_graphs=False, model_id=None
+    model, policy, integration_config, optim_config, record_graphs=False
 ):
     """Run the full episodic training schedule."""
 
-    assert model_id != None, "please provide the model_id keyword"
     assert (
         optim_config["method"] == "reinforce" or optim_config["method"] == "ppo"
     ), "methods supported: reinforce and ppo"
@@ -184,7 +183,7 @@ def trainer(
 
             plot_name = (
                 f"action_distribution_"
-                f"id_{model_id}_"
+                f"model_{model.__class__.__name__}_"
                 f"lr_{optim_config['learning_rate']}_"
                 f"iteration_{iteration:03d}.png"
             )
@@ -208,7 +207,7 @@ def trainer(
         for iteration in range(optim_config["iterations"]):
             plot_name = (
                 f"reward_"
-                f"id_{model_id}_"
+                f"model_{model.__class__.__name__}_"
                 f"lr_{optim_config['learning_rate']}_"
                 f"iteration_{iteration:03d}.png"
             )
@@ -221,4 +220,4 @@ def trainer(
             )
 
     # store trained policy
-    torch.save(policy.state_dict(), POLICIES_DIR / f"{model_id}_policy.pt")
+    torch.save(policy.state_dict(), POLICIES_DIR / f"{model.__class__.__name__}_policy.pt")
