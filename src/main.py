@@ -15,6 +15,7 @@ from training import pretrainer, trainer
 
 CONFIG = set_configuration()
 
+
 def main():
 
     config = deepcopy(CONFIG)
@@ -27,10 +28,13 @@ def main():
     actions_dim = 2
 
     if config.policy_type == "rnn":
-        policy = FlexRNN(states_dim, actions_dim, config.layers_size, config.number_layers)
+        policy = FlexRNN(
+            states_dim, actions_dim, config.layers_size, config.number_layers
+        )
     elif config.policy_type == "nn":
-        policy = FlexNN(states_dim, actions_dim, config.layers_size, config.number_layers)
-
+        policy = FlexNN(
+            states_dim, actions_dim, config.layers_size, config.number_layers
+        )
 
     # pretrain policy means based on some random chebyshev polinomial with fixed standar deviation
     identifiers, desired_controls = random_chebys(2, config.time_points, zipped=True)
@@ -39,13 +43,7 @@ def main():
     # add initial controls identifiers to config
     config.initial_controls_ids = identifiers
 
-    pretrainer(
-        model,
-        policy,
-        desired_controls,
-        desired_deviation,
-        config,
-    )
+    pretrainer(model, policy, desired_controls, desired_deviation, config)
 
     trainer(model, policy, config)
 
@@ -62,6 +60,7 @@ def main():
 
     # retrain last layers
     trainer(new_model, policy, config)
+
 
 if __name__ == "__main__":
 

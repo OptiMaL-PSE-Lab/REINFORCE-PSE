@@ -61,11 +61,11 @@ Run `python main.py` to execute the whole logic:
 
 Current reward is printed over console and relevant profiles are stored in a `./figures/` subdirectory.
 
-Parameters (inside `main.py`):
+Main parameters (more available in command line interface from `main.py`):
 
 * method: 'ppo' or 'reinforce'
-* episode_batch: number of sample episodes run to estimate loss function
-* epochs: gradient descent steps taken after episode sampling (usually 1 for REINFORCE and ~5 for PPO)
+* episode-batch: number of sample episodes run to estimate loss function
+* chained-steps: gradient descent steps taken after episode sampling (usually 1 for REINFORCE and ~5 for PPO)
 * iterations: repetitions of sampling and optimize step
 
 ### Evolution of action distributions of sampled episodes

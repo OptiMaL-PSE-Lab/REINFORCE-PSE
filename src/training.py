@@ -17,13 +17,7 @@ random_seed = np.random.randint(sys.maxsize)  # maxsize = 2**63 - 1
 torch.manual_seed(random_seed)
 
 
-def pretrainer(
-    model,
-    policy,
-    objective_controls,
-    objective_deviation,
-    config,
-):
+def pretrainer(model, policy, objective_controls, objective_deviation, config):
     """Trains parametric policy model to resemble desired starting function."""
 
     assert objective_deviation > 0
@@ -41,10 +35,7 @@ def pretrainer(
     # use tensors to track gradients
     objective_controls = torch.tensor(objective_controls)
     objective_deviations = torch.tensor(
-        [
-            (objective_deviation,) * num_controls
-            for _ in config.time_points
-        ]
+        [(objective_deviation,) * num_controls for _ in config.time_points]
     )
 
     # predictions containers
@@ -119,9 +110,7 @@ def trainer(model, policy, config):
     rewards_std_record = []
 
     if not config.discard_graphics:
-        action_recorder = {
-            time_point: [] for time_point in config.time_points
-        }
+        action_recorder = {time_point: [] for time_point in config.time_points}
     else:
         action_recorder = None
 
@@ -138,10 +127,7 @@ def trainer(model, policy, config):
 
         if config.policy_gradient_method == "reinforce":
             surrogate_mean, reward_mean, reward_std = sample_episodes_reinforce(
-                model,
-                policy,
-                config,
-                action_recorder=action_recorder,
+                model, policy, config, action_recorder=action_recorder
             )
         elif config.policy_gradient_method == "ppo":
             if iteration == 0:
@@ -213,4 +199,7 @@ def trainer(model, policy, config):
             )
 
     # store trained policy
-    torch.save(policy.state_dict(), POLICIES_DIR / f"{model.__class__.__name__}_policy.pt")
+    torch.save(
+        policy.state_dict(), POLICIES_DIR / f"{model.__class__.__name__}_policy.pt"
+    )
+
