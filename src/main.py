@@ -1,7 +1,10 @@
+"Main execution of whole algorithm."
+
+from copy import deepcopy
 
 from config import set_configuration
 from utils import shift_grad_tracking
-from static_controls import random_chebys
+from initial_controls import random_chebys
 from integrator import SimpleModel, ComplexModel
 from policies import FlexNN, FlexRNN
 from training import pretrainer, trainer
@@ -10,58 +13,56 @@ from training import pretrainer, trainer
 #                                     MODEL SPECIFICATIONS
 # -----------------------------------------------------------------------------------------
 
-config = set_configuration()
+CONFIG = set_configuration()
 
-# ODE model to use
-model = SimpleModel()
+def main():
 
-# define policy network
-states_dim = 3
-actions_dim = 2
+    config = deepcopy(CONFIG)
 
-if config.policy_type == "rnn":
-    policy = FlexRNN(states_dim, actions_dim, config.layers_size, config.number_layers)
-elif config.policy_type == "nn":
-    policy = FlexNN(states_dim, actions_dim, config.layers_size, config.number_layers)
+    # ODE model to use
+    model = SimpleModel()
+
+    # define policy network
+    states_dim = 3
+    actions_dim = 2
+
+    if config.policy_type == "rnn":
+        policy = FlexRNN(states_dim, actions_dim, config.layers_size, config.number_layers)
+    elif config.policy_type == "nn":
+        policy = FlexNN(states_dim, actions_dim, config.layers_size, config.number_layers)
 
 
-# -----------------------------------------------------------------------------------------
-#                                         PRETRAINING
-# -----------------------------------------------------------------------------------------
+    # pretrain policy means based on some random chebyshev polinomial with fixed standar deviation
+    identifiers, desired_controls = random_chebys(2, config.time_points, zipped=True)
+    desired_deviation = 2.0
 
-# pretrain policy with linearly increasing policy means and fixed standar deviation
+    # add initial controls identifiers to config
+    config.initial_controls_ids = identifiers
 
-desired_controls = random_chebys(2, config.time_points, zipped=True)
-desired_deviation = 2.0
+    pretrainer(
+        model,
+        policy,
+        desired_controls,
+        desired_deviation,
+        config,
+    )
 
-pretrainer(
-    model,
-    policy,
-    desired_controls,
-    desired_deviation,
-    config,
-)
+    trainer(model, policy, config)
 
-# -----------------------------------------------------------------------------------------
-#                                          TRAINING
-# -----------------------------------------------------------------------------------------
+    new_model = ComplexModel()
 
-trainer(model,policy,config)
+    # freeze all policy layers except last ones
+    shift_grad_tracking(policy, False)
+    shift_grad_tracking(policy.out_means, True)
+    shift_grad_tracking(policy.out_sigmas, True)
 
-# -----------------------------------------------------------------------------------------
-#                                   COMPLEX MODEL
-# -----------------------------------------------------------------------------------------
+    # define new parameters
+    config.iterations = config.post_iterations
+    config.learning_rate = config.post_learning_rate
 
-new_model = ComplexModel()
+    # retrain last layers
+    trainer(new_model, policy, config)
 
-# freeze all policy layers except last ones
-shift_grad_tracking(policy, False)
-shift_grad_tracking(policy.out_means, True)
-shift_grad_tracking(policy.out_sigmas, True)
+if __name__ == "__main__":
 
-# define new parameters
-config.iterations = config.post_iterations
-config.learning_rate = config.post_learning_rate
-
-# retrain last layers
-trainer(new_model,policy,config)
+    main()

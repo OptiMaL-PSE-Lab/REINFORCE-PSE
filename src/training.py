@@ -8,6 +8,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch import Tensor
 
+from initial_controls import multilabel_cheby_identifiers
 from utils import iterable, FIGURES_DIR, POLICIES_DIR
 from episodes import sample_episodes_ppo, sample_episodes_reinforce
 from plots import plot_sampled_actions, plot_sampled_biactions, plot_reward_evolution
@@ -104,11 +105,13 @@ def trainer(model, policy, config):
 
     # prepare directories for results
     if not config.discard_graphics:
+        chebyshev_labels = multilabel_cheby_identifiers(config.initial_controls_ids)
         plots_dir = FIGURES_DIR / (
             f"policy_{policy.__class__.__name__}_"
             f"method_{config.policy_gradient_method}_"
             f"batch_{config.episode_batch}_"
-            f"iter_{config.iterations}"
+            f"iter_{config.iterations}_"
+            f"controls_{chebyshev_labels}"
         )
         plots_dir.mkdir()
 
