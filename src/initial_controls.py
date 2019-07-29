@@ -41,38 +41,42 @@ def multilabel_cheby_identifiers(list_of_ids):
     return "_".join([label_cheby_identifiers(c, n) for c, n in list_of_ids])
 
 
-def random_chebys_generator(number, printer=True):
-    "Generate random first Chebyshev polinomial functions with coefficients in {-1, 1} without replacement."
+def random_coeff_order_combinations(number):
+    "Generate distinct random combinations of unitary coefficients and polynomial orders."
     coeffs_set = {-1, 1}
     max_order = ceildiv(number, len(coeffs_set)) + 3
     pairings = it.product(
         coeffs_set, range(1, max_order)
     )  # avoid 0 order because it falls onboundary
-    sampled = random.sample(list(pairings), number)
-    for c, n in sampled:
+    return random.sample(list(pairings), number)
+
+
+def chebys_generator(coeff_order_pairs, printer=False):
+    "Generate random first Chebyshev polinomial functions with the given coefficients-order pairs."
+    for c, n in coeff_order_pairs:
         # https://docs.python.org/3/faq/programming.html#why-do-lambdas-defined-in-a-loop-with-different-values-all-return-the-same-result
         if printer:
             print("Chebyshev polinomial of first kind:", label_cheby_identifiers(c, n))
         yield (c, n), lambda x, c=c, n=n: c * cheby_basis(x, n)
 
 
-def random_chebys(num_controls, time_points, zipped: bool = False):
+def chebys_tracer(coef_ord_combos, time_points, zipped: bool = False):
     "Generate pretraining samples that follow Chebyshev polinomials."
     safeguard = 0.1
-    id_tuples = []
+    coef_ord_tuples = []
     controls = []
-    for id_tuple, fun in random_chebys_generator(num_controls):
+    for coef_ord_tuple, fun in chebys_generator(coef_ord_combos):
         control = []
         for t in time_points:
             c = fun(t)
             c = affine_transform(c, -1, 1, 0 + safeguard, 5 - safeguard)
             control.append(c)
-        id_tuples.append(id_tuple)
+        coef_ord_tuples.append(coef_ord_tuple)
         controls.append(control)
 
     if zipped:
-        return id_tuples, list(zip(*controls))
-    return id_tuples, controls
+        return coef_ord_tuples, list(zip(*controls))
+    return coef_ord_tuples, controls
 
 
 if __name__ == "__main__":
@@ -81,7 +85,8 @@ if __name__ == "__main__":
         import matplotlib.pyplot as plt
 
         time_points = arange(0, 1, 0.1)
-        identifiers, controls = random_chebys(2, time_points)
+        coef_ord_combos = random_coeff_order_combinations(2)
+        identifiers, controls = chebys_tracer(coef_ord_combos, time_points)
         for i, ctrl in enumerate(controls):
             c, n = identifiers[i]
             plt.plot(time_points, ctrl, label=label_cheby_identifiers(c, n))

@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from numbers import Number
+from itertools import zip_longest
 
 import numpy as np
 
@@ -18,6 +19,13 @@ EPS = np.finfo(np.float32).eps.item()
 def ceildiv(num, den):
     "Integer ceiled division."
     return -(-num // den)
+
+
+def grouper(iterable, n, fillvalue=None):
+    "Collect data into fixed-length chunks or blocks"
+    # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx"
+    args = [iter(iterable)] * n
+    return zip_longest(*args, fillvalue=fillvalue)
 
 
 def affine_transform(x, original_low, original_high, desired_low, desired_high):

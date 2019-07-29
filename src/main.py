@@ -1,10 +1,11 @@
 "Main execution of whole algorithm."
 
 from copy import deepcopy
+from multiprocessing import Pool
 
 from config import set_configuration
-from utils import shift_grad_tracking
-from initial_controls import random_chebys
+from utils import grouper, shift_grad_tracking
+from initial_controls import random_coeff_order_combinations, chebys_tracer
 from integrator import SimpleModel, ComplexModel
 from policies import FlexNN, FlexRNN
 from training import pretrainer, trainer
@@ -13,10 +14,11 @@ from training import pretrainer, trainer
 #                                     MODEL SPECIFICATIONS
 # -----------------------------------------------------------------------------------------
 
+
 CONFIG = set_configuration()
 
 
-def main():
+def full_process(coef_ord_tuple_pair):
 
     config = deepcopy(CONFIG)
 
@@ -37,7 +39,9 @@ def main():
         )
 
     # pretrain policy means based on some random chebyshev polinomial with fixed standar deviation
-    identifiers, desired_controls = random_chebys(2, config.time_points, zipped=True)
+    identifiers, desired_controls = chebys_tracer(
+        coef_ord_tuple_pair, config.time_points, zipped=True
+    )
     desired_deviation = 2.0
 
     # add initial controls identifiers to config
@@ -60,6 +64,19 @@ def main():
 
     # retrain last layers
     trainer(new_model, policy, config)
+
+    return coef_ord_tuple_pair
+
+
+def main():
+
+    with Pool(processes=CONFIG.processes) as pool:  # uses all available processes by default
+
+        coef_ord_combos = random_coeff_order_combinations(2 * pool._processes)
+
+        for res in pool.imap_unordered(full_process, grouper(coef_ord_combos, 2)):
+
+            print(res)
 
 
 if __name__ == "__main__":
