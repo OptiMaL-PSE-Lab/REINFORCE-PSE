@@ -84,7 +84,8 @@ def pretrainer(model, policy, objective_controls, objective_deviation, config):
             loss = criterion(objective_controls, predicted_controls) + criterion(
                 objective_deviations, predicted_deviations
             )
-            print("iteration:", iteration, "\t loss:", loss.item())
+            if iteration % 10 == 0:
+                print("iteration:", iteration, "\t loss:", loss.item())
             loss.backward()
             return loss
 
@@ -101,10 +102,9 @@ def trainer(model, policy, config):
             f"policy_{policy.__class__.__name__}_"
             f"method_{config.policy_gradient_method}_"
             f"batch_{config.episode_batch}_"
-            f"iter_{config.iterations}_"
             f"controls_{chebyshev_labels}"
         )
-        plots_dir.mkdir()
+        plots_dir.mkdir(exist_ok=True)
 
     reward_recorder = []
     rewards_std_record = []
