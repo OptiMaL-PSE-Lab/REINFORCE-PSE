@@ -1,0 +1,10 @@
+name: batch_reactor
+channels:
+  - conda-forge
+  - pytorch
+dependencies:
+  - pytorch-cpu=1.*
+  - torchvision-cpu=0.2.*
+  - scipy=1.*
+  - matplotlib=3.*
+  - seaborn=0.9
