@@ -22,20 +22,17 @@ def full_process(coef_ord_tuple_pair):
 
     config = deepcopy(CONFIG)
 
-    # ODE model to use
+    # ODE model to start with
     model = SimpleModel()
 
-    # define policy network
-    states_dim = 3
-    actions_dim = 2
-
+    # create desired policy
     if config.policy_type == "rnn":
         policy = FlexRNN(
-            states_dim, actions_dim, config.layers_size, config.number_layers
+            model.state_dims, model.controls_dims, config.layers_size, config.number_layers
         )
     elif config.policy_type == "nn":
         policy = FlexNN(
-            states_dim, actions_dim, config.layers_size, config.number_layers
+            model.state_dims, model.controls_dims, config.layers_size, config.number_layers
         )
 
     # pretrain policy means based on some random chebyshev polinomial with fixed standar deviation

@@ -19,7 +19,7 @@ class FlexNN(nn.Module):
 
         # construct sequence of layers sizes
         layers_sizes = [layers_size for _ in range(num_layers)]
-        layers_sizes.insert(0, states_dim)
+        layers_sizes.insert(0, states_dim + 1)  # add remaining time in state
         layers_sizes.append(actions_dim)
         self.layers_sizes = layers_sizes
 
@@ -54,7 +54,7 @@ class FlexRNN(nn.Module):
         super().__init__()
 
         # NOTE: for rnn the states should not include time information
-        self.input_size = input_size - 1
+        self.input_size = input_size
         self.output_size = output_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers

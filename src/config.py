@@ -19,7 +19,7 @@ def set_configuration():
     parser.add_argument("-prelr", "--pre-learning-rate", type=float, default=0.05)
     parser.add_argument("-preit", "--pre-iterations", type=int, default=200)
     parser.add_argument("-lr", "--learning-rate", type=float, default=5e-3)
-    parser.add_argument("-it", "--iterations", type=int, default=200)
+    parser.add_argument("-it", "--iterations", type=int, default=250)
     parser.add_argument("-eb", "--episode-batch", type=int, default=100)
     parser.add_argument(
         "-pgm",
