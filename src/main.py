@@ -1,7 +1,7 @@
 "Main execution of whole algorithm."
 
 from copy import deepcopy
-from multiprocessing import Pool
+import multiprocessing as mp
 
 from config import set_configuration
 from utils import grouper, shift_grad_tracking
@@ -67,14 +67,19 @@ def full_process(coef_ord_tuple_pair):
 
 def main():
 
-    with Pool(processes=CONFIG.processes) as pool:  # uses all available processes by default
+    # required to use vscode debugger with "subProcess": true in launch.json configuration
+    # https://github.com/microsoft/ptvsd/issues/57#issuecomment-444198292
+    # not the nicest method though...
+    # https://github.com/microsoft/ptvsd/issues/943#issuecomment-481148979
+    mp.set_start_method("spawn")
+    
+    with mp.Pool(processes=CONFIG.processes) as pool:  # uses all available processes by default
 
         coef_ord_combos = random_coeff_order_combinations(2 * pool._processes)
 
         for res in pool.imap_unordered(full_process, grouper(coef_ord_combos, 2)):
 
             print(res)
-
 
 if __name__ == "__main__":
 
