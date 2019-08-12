@@ -8,7 +8,7 @@ from . import AbstractModel
 class ODEModel(AbstractModel):
     """Basic class that contains what is expected to be implemented from any ODE model."""
 
-    def __init__(self, parameters, controls_dims, states_dims, integrator="lsoda"):
+    def __init__(self, states_dims, controls_dims, parameters, integrator="lsoda"):
         self.ode = scp.ode(self.system)
         self.ode.set_integrator(integrator)
         super().__init__(states_dims, controls_dims, parameters)
