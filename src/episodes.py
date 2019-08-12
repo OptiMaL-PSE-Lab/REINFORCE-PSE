@@ -11,47 +11,43 @@ def episode_reinforce(model, policy, config, action_recorder=None):
 
     # define initial conditions
     t = config.ti
-    integrated_state = config.initial_state
+    current_state = config.initial_state
 
     sum_log_probs = 0.0
     hidden_state = None
     for time_point in config.time_points:
 
-        timed_state = Tensor((*integrated_state, config.tf - t))
+        timed_state = Tensor((*current_state, config.tf - t))
         (means, sigmas), hidden_state = policy(timed_state, hidden_state=hidden_state)
         controls, sum_log_prob = sample_actions(means, sigmas)
 
         sum_log_probs = sum_log_probs + sum_log_prob
 
-        integration_time = config.subinterval
-
-        t = t + integration_time
-        integrated_state = model.integrate(
-            controls, integrated_state, integration_time, initial_time=t
+        current_state = model.step(
+            current_state, controls, config.subinterval, initial_time=t
         )
+        t = t + config.subinterval
 
         if action_recorder is not None:
             action_recorder[time_point].append(controls)  # FIXME?
 
-    reward = integrated_state[1]
+    reward = current_state[1]
     return reward, sum_log_probs
 
 
 # @ray.remote
-def episode_ppo(
-    model, policy, config, policy_old=None, action_recorder=None
-):
+def episode_ppo(model, policy, config, policy_old=None, action_recorder=None):
     """Compute a single episode given a policy and track useful quantities for learning."""
 
     # define initial conditions
     t = config.ti
-    integrated_state = config.initial_state
+    current_state = config.initial_state
 
     prob_ratios = []
     hidden_state = None
     for time_point in config.time_points:
 
-        timed_state = Tensor((*integrated_state, config.tf - t))
+        timed_state = Tensor((*current_state, config.tf - t))
         (means, sigmas), hidden_state = policy(timed_state, hidden_state=hidden_state)
         controls, sum_log_prob = sample_actions(means, sigmas)
 
@@ -66,23 +62,19 @@ def episode_ppo(
         prob_ratio = (sum_log_prob - sum_log_prob_old).exp()
         prob_ratios.append(prob_ratio)
 
-        integration_time = config.subinterval
-
-        t = t + integration_time
-        integrated_state = model.integrate(
-            controls, integrated_state, integration_time, initial_time=t
+        current_state = model.step(
+            current_state, controls, config.subinterval, initial_time=t
         )
+        t = t + config.subinterval
 
         if action_recorder is not None:
             action_recorder[time_point].append(controls)
 
-    reward = integrated_state[1]
+    reward = current_state[1]
     return reward, prob_ratios
 
 
-def sample_episodes_reinforce(
-    model, policy, config, action_recorder=None
-):
+def sample_episodes_reinforce(model, policy, config, action_recorder=None):
     """
     Executes multiple episodes under the current stochastic policy,
     gets an average of the reward and the summed log probabilities
@@ -113,12 +105,7 @@ def sample_episodes_reinforce(
 
 
 def sample_episodes_ppo(
-    model,
-    policy,
-    config,
-    policy_old=None,
-    epsilon=0.3,
-    action_recorder=None,
+    model, policy, config, policy_old=None, epsilon=0.3, action_recorder=None
 ):
     """
     Executes multiple episodes under the current stochastic policy,

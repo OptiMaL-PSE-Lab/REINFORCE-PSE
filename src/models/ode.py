@@ -3,40 +3,23 @@ from itertools import chain
 import numpy as np
 import scipy.integrate as scp
 
+from . import AbstractModel
 
-class ODEModel(object):
+class ODEModel(AbstractModel):
     """Basic class that contains what is expected to be implemented from any ODE model."""
 
-    def __init__(self, parameters, controls_dims, state_dims, integrator="lsoda"):
-        self.parameters = parameters
-        self.controls_dims = controls_dims
-        self.state_dims = state_dims
+    def __init__(self, parameters, controls_dims, states_dims, integrator="lsoda"):
         self.ode = scp.ode(self.system)
         self.ode.set_integrator(integrator)
+        super().__init__(states_dims, controls_dims, parameters)
 
-    def _check_dims(self, controls, state):
-        """Runtime check of control and state dimensions."""
-        try:
-            iter(controls)
-            iter(state)
-        except TypeError:
-            raise TypeError(
-                "Please use containers for controls and states: value --> [value]."
-            )
-        else:
-            assert self.controls_dims == len(
-                controls
-            ), f"This model expects {self.controls_dims} controls!"
-            assert self.state_dims == len(
-                state
-            ), f"This model expects {self.state_dims} controls!"
 
     @staticmethod  # static required to pass it as argument to scipy ode integrator
     def system(t, state, f_args):
         """
         Vectorial function representing an ODE system.
 
-        * derivative array = system(current state)
+        derivative array = system(current state)
 
         f_args is a concatenation of parameters (first always) and controls.
         """
@@ -44,12 +27,13 @@ class ODEModel(object):
             "The function defining the dynamical system modeled must be specified!"
         )
 
-    def integrate(self, controls, initial_state, integration_time, initial_time=0.0):
+    def step(self, state, controls, integration_time, initial_time=0.0, runtime_check=True):
         """General scipy integration routine."""
-        self._check_dims(controls, initial_state)
+        if runtime_check:
+            self._check_dims(state, controls)
         f_params = list(chain(self.parameters, controls))  # concatenation
         self.ode.set_f_params(f_params)
-        self.ode.set_initial_value(initial_state, initial_time)
+        self.ode.set_initial_value(state, initial_time)
         integrated_state = self.ode.integrate(self.ode.t + integration_time)
         return integrated_state
 
@@ -57,8 +41,8 @@ class ODEModel(object):
 class SimpleModel(ODEModel):
     def __init__(self, parameters=(0.5, 1.0, 1.0, 1.0)):
         controls_dims = 2
-        state_dims = 2
-        super().__init__(parameters, controls_dims, state_dims)
+        states_dims = 2
+        super().__init__(states_dims, controls_dims, parameters)
 
     @staticmethod
     def system(t, state, f_args):
@@ -75,8 +59,8 @@ class SimpleModel(ODEModel):
 class ComplexModel(ODEModel):
     def __init__(self, parameters=(0.5, 1.0, 0.7, 0.5)):
         controls_dims = 2
-        state_dims = 2
-        super().__init__(parameters, controls_dims, state_dims)
+        states_dims = 2
+        super().__init__(states_dims, controls_dims, parameters)
 
     @staticmethod
     def system(t, state, f_args):

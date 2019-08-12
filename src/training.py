@@ -49,7 +49,7 @@ def pretrainer(model, policy, objective_controls, objective_deviation, config):
 
         # define starting points at each episode
         t = config.ti
-        integrated_state = config.initial_state
+        current_state = config.initial_state
 
         # each step of this episode
         hidden_state = None
@@ -57,7 +57,7 @@ def pretrainer(model, policy, objective_controls, objective_deviation, config):
 
             # current state tracked container
             time_left = config.tf - t
-            state = Tensor((*integrated_state, time_left))  # add time pending to state
+            state = Tensor((*current_state, time_left))  # add time pending to state
 
             # continuous policy prediction
             (means, sigmas), hidden_state = policy(state, hidden_state=hidden_state)
@@ -67,12 +67,11 @@ def pretrainer(model, policy, objective_controls, objective_deviation, config):
 
             # follow objective integration trajectory
             controls = iterable(objective_controls[ind])
-            integration_time = config.subinterval
 
-            integrated_state = model.integrate(
-                controls, integrated_state, integration_time, initial_time=t
+            current_state = model.step(
+                current_state, controls, config.subinterval, initial_time=t
             )
-            t = t + integration_time
+            t = t + config.subinterval
 
         # gather predictions of current policy
         predicted_controls = torch.stack(predictions)
