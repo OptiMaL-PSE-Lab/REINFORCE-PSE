@@ -1,5 +1,4 @@
 import argparse
-from multiprocessing import cpu_count
 
 
 def set_configuration():
@@ -11,7 +10,7 @@ def set_configuration():
         description="All parameters related to policy and optimization."
     )
 
-    parser.add_argument("-pr", "--processes", type=int, default=cpu_count())
+    parser.add_argument("-pr", "--processes", type=int, default=1)
     parser.add_argument("-div", "--divisions", type=int, default=20)
     parser.add_argument("-nl", "--number-layers", type=int, default=2)
     parser.add_argument("-ls", "--layers-size", type=int, default=25)

@@ -69,19 +69,26 @@ def main():
 
     print(f"Using {CONFIG.processes} processes from {mp.cpu_count()} available.")
 
-    # required to use vscode debugger with "subProcess": true in launch.json configuration
-    # https://github.com/microsoft/ptvsd/issues/57#issuecomment-444198292
-    # not the nicest method though...
-    # https://github.com/microsoft/ptvsd/issues/943#issuecomment-481148979
-    mp.set_start_method("spawn")
+    if CONFIG.processes > 1:
 
-    with mp.Pool(processes=CONFIG.processes) as pool:  # uses all available processes by default
+        # required to use vscode debugger with "subProcess": true in launch.json configuration
+        # https://github.com/microsoft/ptvsd/issues/57#issuecomment-444198292
+        # not the nicest method though...
+        # https://github.com/microsoft/ptvsd/issues/943#issuecomment-481148979
+        # mp.set_start_method("spawn")
 
-        coef_ord_combos = random_coeff_order_combinations(2 * pool._processes)
+        with mp.Pool(processes=CONFIG.processes) as pool:  # uses all available processes by default
 
-        for res in pool.imap_unordered(full_process, grouper(coef_ord_combos, 2)):
+            coef_ord_combos = random_coeff_order_combinations(2 * pool._processes)
 
-            print(res)
+            for res in pool.imap_unordered(full_process, grouper(coef_ord_combos, 2)):
+
+                print(res)
+    
+    else:
+        coef_ord_combos = random_coeff_order_combinations(2)
+        full_process(coef_ord_combos)
+    
 
 if __name__ == "__main__":
 
