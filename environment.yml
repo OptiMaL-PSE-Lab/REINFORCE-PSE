@@ -12,3 +12,4 @@ dependencies:
   - scipy=1.*
   - matplotlib=3.*
   - seaborn=0.9
+  - tqdm=4.*

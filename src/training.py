@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch import Tensor
+from tqdm import trange  # trange = tqdm(range(...))
 
 from initial_controls import multilabel_cheby_identifiers
 from utils import iterable, FIGURES_DIR, POLICIES_DIR
@@ -45,7 +46,8 @@ def pretrainer(model, policy, objective_controls, objective_deviation, config):
     uncertainties = empty_list.copy()
 
     # iterative fitting
-    for iteration in range(config.pre_iterations):
+    pbar = trange(config.pre_iterations)
+    for _ in pbar:
 
         # define starting points at each episode
         t = config.ti
@@ -83,8 +85,7 @@ def pretrainer(model, policy, objective_controls, objective_deviation, config):
             loss = criterion(objective_controls, predicted_controls) + criterion(
                 objective_deviations, predicted_deviations
             )
-            if iteration % 10 == 0:
-                print("iteration:", iteration, "\t loss:", loss.item())
+            pbar.set_description(f"Loss {loss.item():.2}")
             loss.backward()
             return loss
 
@@ -122,7 +123,8 @@ def trainer(model, policy, config):
 
     optimizer = optim.Adam(policy.parameters(), lr=config.learning_rate)
 
-    for iteration in range(config.iterations):
+    pbar = trange(config.iterations)
+    for iteration in pbar:
 
         if config.policy_gradient_method == "reinforce":
             surrogate_mean, reward_mean, reward_std = sample_episodes_reinforce(
@@ -154,8 +156,7 @@ def trainer(model, policy, config):
         reward_recorder.append(reward_mean)
         rewards_std_record.append(reward_std)
 
-        print("iteration:", iteration)
-        print(f"mean reward: {reward_mean:.5} +- {reward_std:.4}")
+        pbar.set_description(f"mean reward: {reward_mean:.3} +- {reward_std:.2}")
 
         if not config.discard_graphics:
 
