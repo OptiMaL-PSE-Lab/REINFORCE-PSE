@@ -2,9 +2,13 @@ name: batch_reactor
 channels:
   - conda-forge
   - pytorch
+  - gpytorch
 dependencies:
-  - pytorch-cpu=1.*
-  - torchvision-cpu=0.2.*
+  - cpuonly=1.*
+  - pytorch=1.*
+  - torchvision=0.4.*
+  - botorch=0.1.*
+  - gpytorch=0.3.*
   - scipy=1.*
   - matplotlib=3.*
   - seaborn=0.9
