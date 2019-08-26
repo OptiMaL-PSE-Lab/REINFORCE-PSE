@@ -1,11 +1,12 @@
 "Main execution of whole algorithm."
 
 from copy import deepcopy
+from datetime import datetime
 import multiprocessing as mp
 
 from config import set_configuration
 from utils import grouper, shift_grad_tracking
-from initial_controls import random_coeff_order_combinations, chebys_tracer
+from initial_controls import random_coeff_order_combinations, chebys_tracer, multilabel_cheby_identifiers
 from models.ode import SimpleModel, ComplexModel
 from policies import FlexNN, FlexRNN
 from training import pretrainer, trainer
@@ -46,7 +47,15 @@ def full_process(coef_ord_tuple_pair):
 
     pretrainer(model, policy, desired_controls, desired_deviation, config)
 
-    trainer(model, policy, config)
+    chebyshev_labels = multilabel_cheby_identifiers(identifiers)
+    data_filepath = (
+        f"policy_{policy.__class__.__name__}_"
+        f"initial_controls_{chebyshev_labels}_"
+        f"datetime_{datetime.now()}"
+        ".hdf5"
+    )
+
+    trainer(model, policy, config, data_filepath)
 
     new_model = ComplexModel()
 
@@ -60,7 +69,7 @@ def full_process(coef_ord_tuple_pair):
     config.learning_rate = config.post_learning_rate
 
     # retrain last layers
-    trainer(new_model, policy, config)
+    trainer(new_model, policy, config, data_filepath)
 
     return coef_ord_tuple_pair
 

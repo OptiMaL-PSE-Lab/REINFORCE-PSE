@@ -5,6 +5,9 @@
 *.pyc
 *.pt
 
+# data
+*.hdf5
+
 # images
 *.jpg
 *.png
