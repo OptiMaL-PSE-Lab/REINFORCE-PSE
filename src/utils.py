@@ -7,8 +7,18 @@ from itertools import zip_longest
 import numpy as np
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-RESULTS_DIR = BASE_DIR / "results"
-RESULTS_DIR.mkdir(exist_ok=True)
+
+DIRS = {
+    "results": BASE_DIR / "results",
+    "data": BASE_DIR / "results" / "data",
+    "figures": BASE_DIR / "results" / "figures",
+    "policies": BASE_DIR / "results" / "policies",
+}
+
+DIRS["results"].mkdir(exist_ok=True)
+DIRS["data"].mkdir(exist_ok=True)
+DIRS["figures"].mkdir(exist_ok=True)
+DIRS["policies"].mkdir(exist_ok=True)
 
 EPS = np.finfo(np.float32).eps.item()
 

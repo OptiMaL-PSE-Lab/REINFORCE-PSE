@@ -2,8 +2,9 @@ import numpy as np
 import torch
 from torch import Tensor
 
-from utils import EPS
 from distributions import sample_actions, retrieve_sum_log_prob
+from tqdm import trange
+from utils import EPS
 
 class EpisodeSampler:
     "Several algorithms to sample paths given a model and a policy."
@@ -112,7 +113,7 @@ class EpisodeSampler:
         rewards = [None for _ in range(self.config.episode_batch)]
         sum_log_probs = [None for _ in range(self.config.episode_batch)]
 
-        for epi in range(self.config.episode_batch):
+        for epi in trange(self.config.episode_batch, desc="Sampling episodes"):
             reward, sum_log_prob = self.episode_reinforce()
             rewards[epi] = reward
             sum_log_probs[epi] = sum_log_prob
@@ -139,7 +140,7 @@ class EpisodeSampler:
         rewards = [None for _ in range(self.config.episode_batch)]
         prob_ratios = [None for _ in range(self.config.episode_batch)]
 
-        for epi in range(self.config.episode_batch):
+        for epi in trange(self.config.episode_batch, desc="Sampling episodes"):
             reward, prob_ratios_episode = self.episode_ppo(policy_old=policy_old)
             rewards[epi] = reward
             prob_ratios[epi] = prob_ratios_episode
