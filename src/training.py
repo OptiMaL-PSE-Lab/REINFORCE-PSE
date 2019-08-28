@@ -172,7 +172,11 @@ class Trainer:
             recorder["rewards_mean"][iteration] = reward_mean
             recorder["rewards_std"][iteration] = reward_std
 
-            with h5py.File(DIRS["data"] / self.filename, mode="a") as h5file:
+            with h5py.File(DIRS["data"] / self.filename) as h5file:  # mode="a"
+                if len(h5file.attrs) == 0:
+                    for key, val in self.config.__dict__.items():
+                        h5file.attrs[key] = val
+
                 group = h5file.create_group(
                     f"seed_{self.seed}/model_{self.model.__class__.__name__}/iter_{iteration}"
                 )
