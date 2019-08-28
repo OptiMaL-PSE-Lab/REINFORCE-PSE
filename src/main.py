@@ -62,7 +62,9 @@ def full_process(coef_ord_tuple_pair):
     config = deepcopy(CONFIG)
 
     # add initial controls identifiers to config
-    config.initial_controls_labels = multilabel_cheby_identifiers(identifiers)
+    labels = multilabel_cheby_identifiers(identifiers)
+    config.initial_controls_labels = labels
+    print(f"Initial controls {labels}")
 
     for _ in range(config.distinct_seeds):
 

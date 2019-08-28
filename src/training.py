@@ -1,6 +1,7 @@
-import sys
 import copy
 from datetime import datetime
+import sys
+from pathlib import Path
 
 import h5py
 import numpy as np
@@ -29,16 +30,13 @@ class Trainer:
         self.config = config
         self.policy = policy_selector(model, config)
 
-        self.filename = f"policy_{self.policy.__class__.__name__}.hdf5"
+        self.filename = Path(
+            f"policy_{self.policy.__class__.__name__}_"
+            f"initial_controls_{self.config.initial_controls_labels}"
+        )
 
     def pretrain(self, objective_controls, objective_deviation):
         """Trains parametric policy model to resemble desired starting function."""
-
-        self.filename = (
-            f"policy_{self.policy.__class__.__name__}_"
-            f"initial_controls_{self.config.initial_controls_labels}"
-            ".hdf5"
-        )
 
         assert objective_deviation > 0
 
@@ -172,7 +170,8 @@ class Trainer:
             recorder["rewards_mean"][iteration] = reward_mean
             recorder["rewards_std"][iteration] = reward_std
 
-            with h5py.File(DIRS["data"] / self.filename) as h5file:  # mode="a"
+            filepath = DIRS["data"] / self.filename.with_suffix(".hdf5")
+            with h5py.File(filepath) as h5file:  # mode="a"
                 if len(h5file.attrs) == 0:
                     for key, val in self.config.__dict__.items():
                         h5file.attrs[key] = val
@@ -230,5 +229,5 @@ class Trainer:
         # store trained policy
         torch.save(
             self.policy.state_dict(),
-            DIRS["results"] / "policies" / f"{self.model.__class__.__name__}_policy.pt"
+            DIRS["results"] / "policies" / self.filename / f"model_{self.model.__class__.__name__}.pt"
         )
