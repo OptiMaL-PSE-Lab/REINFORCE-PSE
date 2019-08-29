@@ -115,6 +115,26 @@ class Trainer:
     def train(self, post_training=False):
         """Run the full episodic training schedule."""
 
+        filepath = DIRS["data"] / self.filename.with_suffix(".hdf5")
+        try:  # check configuration consistency with target data file
+            with h5py.File(filepath, mode="r") as h5file:
+                for key, val in self.config.__dict__.items():
+                    if type(h5file.attrs[key]) == np.ndarray:
+                        if np.array_equal(h5file.attrs[key], val):
+                            continue
+                    if h5file.attrs[key] == val:
+                        continue
+                    raise RuntimeWarning(
+                        f"Non matching config {key}!\n"
+                        f"Current: {val}\n"
+                        f"Stored: {h5file.attrs[key]}!"
+                    )
+        except OSError:  # non-existent file
+            # store current configuration
+            with h5py.File(filepath) as h5file:  # mode="a"
+                for key, val in self.config.__dict__.items():
+                    h5file.attrs[key] = val
+
         if post_training:
             iterations = self.config.post_iterations
             learning_rate = self.config.post_learning_rate
@@ -159,42 +179,32 @@ class Trainer:
             recorder["rewards_mean"][iteration] = reward_mean
             recorder["rewards_std"][iteration] = reward_std
 
-            filepath = DIRS["data"] / self.filename.with_suffix(".hdf5")
             with h5py.File(filepath) as h5file:  # mode="a"
 
-                # import pprint
-                # pprint.pprint(self.config.__dict__)
-                # store or check current configuration
-                if len(h5file.attrs) == 0:
-                    for key, val in self.config.__dict__.items():
-                        h5file.attrs[key] = val
-                else:
-                    for key, val in self.config.__dict__.items():
-                        if type(h5file.attrs[key]) == np.ndarray:
-                            if np.array_equal(h5file.attrs[key], val):
-                                continue
-                        if h5file.attrs[key] == val:
-                            continue
-                        raise RuntimeWarning(
-                            f"Non matching config {key}!\n"
-                            f"Current: {val}\n"
-                            f"Stored: {h5file.attrs[key]}!"
-                        )
-
                 # dynamic configuration
-                h5file.attrs.get("seed", set()).add(self.seed)
-                h5file.attrs.get("model", set()).add(self.model.__class__.__name__)
+                seeds = h5file.attrs.get("seeds", np.array([]))
+                models = h5file.attrs.get("models", np.array([], dtype="S"))
+                # NOTE: h5py does not support fixed length unicode
+                if self.seed not in seeds:
+                    h5file.attrs["seeds"] = np.append(seeds, self.seed)
+                if self.model.__class__.__name__ not in models:
+                    h5file.attrs["models"] = np.append(models, np.string_(self.model.__class__.__name__))
 
                 group = h5file.create_group(
                     f"seed_{self.seed}/model_{self.model.__class__.__name__}/iter_{iteration}"
                 )
 
-                # gzip with level 4 compression by default
-                group.create_dataset("states", data=ep_sampler.recorder["states"], compression="gzip")
-                group.create_dataset("controls", data=ep_sampler.recorder["controls"], compression="gzip")
-                group.create_dataset("rewards", data=ep_sampler.recorder["rewards"], compression="gzip")
+                # gzip with given level of compression (0-9)
+                group.create_dataset("states", data=ep_sampler.recorder["states"], compression=9)
+                group.create_dataset("controls", data=ep_sampler.recorder["controls"], compression=9)
+                group.create_dataset("rewards", data=ep_sampler.recorder["rewards"], compression=9)
 
             pbar.set_description(f"Roll-out mean reward: {reward_mean:.3} +- {reward_std:.2}")
+
+        with h5py.File(filepath) as h5file:
+            group = h5file[f"seed_{self.seed}/model_{self.model.__class__.__name__}"]
+            group.create_dataset("rewards_mean", data=recorder["rewards_mean"], compression=9)
+            group.create_dataset("rewards_std", data=recorder["rewards_std"], compression=9)
 
         # store trained policy
         policy_dir = DIRS["results"] / "policies" / self.filename
