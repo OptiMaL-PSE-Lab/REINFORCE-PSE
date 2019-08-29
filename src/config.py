@@ -1,5 +1,6 @@
 import argparse
 
+import numpy as np
 
 def set_configuration():
     """
@@ -38,9 +39,9 @@ def set_configuration():
     config.ti = 0
     config.tf = 1
     config.subinterval = (config.tf - config.ti) / config.divisions
-    config.time_points = [
-        config.ti + div * config.subinterval for div in range(config.divisions)
-    ]
+    config.time_points = np.array(
+        [config.ti + div * config.subinterval for div in range(config.divisions)]
+    )
 
     config.initial_state = (1, 0)
 

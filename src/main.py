@@ -13,6 +13,7 @@ from initial_controls import (
 )
 from models.ode import SimpleModel, ComplexModel
 from training import Trainer
+# from plots import Plotter
 
 CONFIG = set_configuration()
 
@@ -42,12 +43,12 @@ def training_pipeline(config, desired_controls, desired_deviation):
     shift_grad_tracking(trainer.policy.out_means, True)
     shift_grad_tracking(trainer.policy.out_sigmas, True)
 
-    # define new parameters
-    trainer.config.iterations = config.post_iterations
-    trainer.config.learning_rate = config.post_learning_rate
-
     # retrain on-policy last layers
-    trainer.train()
+    trainer.train(post_training=True)
+
+    # # plot results
+    # plotter = Plotter(trainer)
+    # plotter.plot()
 
 
 def full_process(coef_ord_tuple_pair):

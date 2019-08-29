@@ -15,7 +15,7 @@ from initial_controls import multilabel_cheby_identifiers
 from utils import iterable, DIRS
 from episodes import EpisodeSampler
 from policies import policy_selector
-from plots import plot_sampled_actions, plot_sampled_biactions, plot_reward_evolution
+
 
 class Trainer:
     "Training utilities."
@@ -112,35 +112,24 @@ class Trainer:
 
             optimizer.step(closure)
 
-    def train(self):
+    def train(self, post_training=False):
         """Run the full episodic training schedule."""
 
+        if post_training:
+            iterations = self.config.post_iterations
+            learning_rate = self.config.post_learning_rate
+        else:
+            iterations = self.config.iterations
+            learning_rate = self.config.learning_rate
+
         recorder = {
-            "rewards_mean": np.zeros(shape=(self.config.iterations)),
-            "rewards_std": np.zeros(shape=(self.config.iterations)),
+            "rewards_mean": np.zeros(shape=(iterations)),
+            "rewards_std": np.zeros(shape=(iterations)),
         }
 
-        # # prepare directories for results
-        # if not config.discard_graphics:
-        #     chebyshev_labels = config.initial_controls_labels
-        #     plots_dir = DIRS["figures"] / (
-        #         f"policy_{policy.__class__.__name__}_"
-        #         f"method_{config.policy_gradient_method}_"
-        #         f"batch_{config.episode_batch}_"
-        #         f"controls_{chebyshev_labels}"
-        #     )
-        #     plots_dir.mkdir(exist_ok=True)
+        optimizer = optim.Adam(self.policy.parameters(), lr=learning_rate)
 
-        # print(
-        #     f"""
-        #     Training for {self.config.iterations} iterations of
-        #     {self.config.episode_batch} sampled episodes each!
-        #     """
-        # )
-
-        optimizer = optim.Adam(self.policy.parameters(), lr=self.config.learning_rate)
-
-        pbar = trange(self.config.iterations)
+        pbar = trange(iterations)
         for iteration in pbar:
 
             ep_sampler = EpisodeSampler(self.model, self.policy, self.config)
@@ -172,62 +161,45 @@ class Trainer:
 
             filepath = DIRS["data"] / self.filename.with_suffix(".hdf5")
             with h5py.File(filepath) as h5file:  # mode="a"
+
+                # import pprint
+                # pprint.pprint(self.config.__dict__)
+                # store or check current configuration
                 if len(h5file.attrs) == 0:
                     for key, val in self.config.__dict__.items():
                         h5file.attrs[key] = val
+                else:
+                    for key, val in self.config.__dict__.items():
+                        if type(h5file.attrs[key]) == np.ndarray:
+                            if np.array_equal(h5file.attrs[key], val):
+                                continue
+                        if h5file.attrs[key] == val:
+                            continue
+                        raise RuntimeWarning(
+                            f"Non matching config {key}!\n"
+                            f"Current: {val}\n"
+                            f"Stored: {h5file.attrs[key]}!"
+                        )
+
+                # dynamic configuration
+                h5file.attrs.get("seed", set()).add(self.seed)
+                h5file.attrs.get("model", set()).add(self.model.__class__.__name__)
 
                 group = h5file.create_group(
                     f"seed_{self.seed}/model_{self.model.__class__.__name__}/iter_{iteration}"
                 )
-                group["states"] = ep_sampler.recorder["states"]
-                group["controls"] = ep_sampler.recorder["controls"]
-                group["rewards"] = ep_sampler.recorder["rewards"]
 
-            pbar.set_description(f"mean reward: {reward_mean:.3} +- {reward_std:.2}")
+                # gzip with level 4 compression by default
+                group.create_dataset("states", data=ep_sampler.recorder["states"], compression="gzip")
+                group.create_dataset("controls", data=ep_sampler.recorder["controls"], compression="gzip")
+                group.create_dataset("rewards", data=ep_sampler.recorder["rewards"], compression="gzip")
 
-        #     if not config.discard_graphics:
-
-        #         plot_name = (
-        #             f"action_distribution_"
-        #             f"model_{model.__class__.__name__}_"
-        #             f"lr_{config.learning_rate}_"
-        #             f"iteration_{iteration:03d}.png"
-        #         )
-        #         if model.controls_dims == 2:
-        #             plot_sampled_biactions(
-        #                 action_recorder,
-        #                 iteration,
-        #                 show=False,
-        #                 store_path=plots_dir / plot_name,
-        #             )
-        #         else:
-        #             plot_sampled_actions(
-        #                 action_recorder,
-        #                 iteration,
-        #                 show=False,
-        #                 store_path=plots_dir / plot_name,
-        #             )
-
-        # # NOTE: separated to have all rewards accesible to tune ylims accordingly
-        # if not config.discard_graphics:
-        #     for iteration in range(config.iterations):
-        #         plot_name = (
-        #             f"reward_"
-        #             f"model_{model.__class__.__name__}_"
-        #             f"lr_{config.learning_rate}_"
-        #             f"iteration_{iteration:03d}.png"
-        #         )
-        #         # TODO: plot reward with std
-        #         plot_reward_evolution(
-        #             recorder["rewards_mean"],
-        #             iteration,
-        #             config,
-        #             show=False,
-        #             store_path=plots_dir / plot_name,
-        #         )
+            pbar.set_description(f"Roll-out mean reward: {reward_mean:.3} +- {reward_std:.2}")
 
         # store trained policy
+        policy_dir = DIRS["results"] / "policies" / self.filename
+        policy_dir.mkdir(exist_ok=True)
         torch.save(
             self.policy.state_dict(),
-            DIRS["results"] / "policies" / self.filename / f"model_{self.model.__class__.__name__}.pt"
+            policy_dir / f"model_{self.model.__class__.__name__}.pt"
         )
