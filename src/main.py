@@ -13,7 +13,7 @@ from initial_controls import (
 )
 from models.ode import SimpleModel, ComplexModel
 from training import Trainer
-# from plots import Plotter
+from plots import Plotter
 
 CONFIG = set_configuration()
 
@@ -47,8 +47,8 @@ def training_pipeline(config, desired_controls, desired_deviation):
     trainer.train(post_training=True)
 
     # # plot results
-    # plotter = Plotter(trainer)
-    # plotter.plot()
+    plotter = Plotter(trainer.filename)
+    plotter.plot()
 
 
 def full_process(coef_ord_tuple_pair):
