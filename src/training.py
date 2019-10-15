@@ -6,8 +6,6 @@ from pathlib import Path
 import h5py
 import numpy as np
 import torch
-import torch.nn as nn
-import torch.optim as optim
 from torch import Tensor
 from tqdm import trange  # trange = tqdm(range(...))
 
@@ -47,8 +45,8 @@ class Trainer:
         )
 
         # training parameters
-        criterion = nn.MSELoss(reduction="mean")
-        optimizer = optim.Adam(
+        criterion = torch.nn.MSELoss(reduction="mean")
+        optimizer = torch.optim.Adam(
             self.policy.parameters(), lr=self.config.pre_learning_rate
         )
 
@@ -147,7 +145,7 @@ class Trainer:
             "rewards_std": np.zeros(shape=(iterations)),
         }
 
-        optimizer = optim.Adam(self.policy.parameters(), lr=learning_rate)
+        optimizer = torch.optim.Adam(self.policy.parameters(), lr=learning_rate)
 
         pbar = trange(iterations)
         for iteration in pbar:
@@ -185,10 +183,11 @@ class Trainer:
                 seeds = h5file.attrs.get("seeds", np.array([]))
                 models = h5file.attrs.get("models", np.array([], dtype="S"))
                 # NOTE: h5py does not support fixed length unicode
+                model_ascii = np.string_(self.model.__class__.__name__)
                 if self.seed not in seeds:
                     h5file.attrs["seeds"] = np.append(seeds, self.seed)
-                if self.model.__class__.__name__ not in models:
-                    h5file.attrs["models"] = np.append(models, np.string_(self.model.__class__.__name__))
+                if model_ascii not in models:
+                    h5file.attrs["models"] = np.append(models, model_ascii)
 
                 group = h5file.create_group(
                     f"seed_{self.seed}/model_{self.model.__class__.__name__}/iter_{iteration}"
