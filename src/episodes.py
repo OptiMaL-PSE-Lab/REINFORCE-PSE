@@ -4,7 +4,7 @@ from torch import Tensor
 
 from distributions import sample_actions, retrieve_sum_log_prob
 from tqdm import trange
-from utils import EPS
+from config import EPS
 
 class EpisodeSampler:
     "Several algorithms to sample paths given a model and a policy."
@@ -14,22 +14,22 @@ class EpisodeSampler:
         self.policy = policy
         self.config = config
         self.recorder = {}
-        
+
         self.recorder["states"] = np.zeros(shape=(config.episode_batch, config.divisions, model.states_dims))
         self.recorder["controls"] = np.zeros(shape=(config.episode_batch, config.divisions, model.controls_dims))
         self.recorder["rewards"] = np.zeros(shape=(config.episode_batch))
 
         self.episode_number = 0
-    
+
     def record_state_control(self, states, controls, time_index):
         "Store the current state and controls of the episode."
         self.recorder["states"][self.episode_number, time_index, : ] = states
         self.recorder["controls"][self.episode_number, time_index, : ] = controls
-    
+
     def record_reward(self, reward):
         "Store the reward of the episode"
         self.recorder["rewards"][self.episode_number] = reward
-    
+
     def episode_reinforce(self):
         """Compute a single episode given a policy and track useful quantities for learning."""
 
@@ -155,6 +155,7 @@ class EpisodeSampler:
 
             for prob_ratio in prob_ratios[epi]:
                 clipped = prob_ratio.clamp(1 - epsilon, 1 + epsilon)
+                # pylint: disable=no-member
                 surrogate = surrogate - torch.min(
                     baselined_reward * prob_ratio, baselined_reward * clipped
                 )

@@ -9,18 +9,17 @@ from . import AbstractModel
 class GP_Regression:
     "General Gaussian Process Regression."
 
-    def __init__(self, X, )
+    def __init__(self, X, y):
         pass
     
-    def covariance_matrix(self, X_norm, weight, variance_vector)
+    def covariance_matrix(self, X_norm, weight, variance_vector):
+        pass
 
 class GPModel(AbstractModel):
     """Gaussian Process Approximation of a real model from noisy data."""
 
     def __init__(self, config):
         pass
-    
-    def 
     
     def sample_ode_model(self, ode_model, initial_state, sigma_squared, confi):
         pass

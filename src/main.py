@@ -1,7 +1,6 @@
 "Main execution of whole algorithm."
 
 from copy import deepcopy
-from datetime import datetime
 import multiprocessing as mp
 
 from config import set_configuration
@@ -47,7 +46,7 @@ def training_pipeline(config, desired_controls, desired_deviation):
     trainer.train(post_training=True)
 
     # # plot results
-    plotter = Plotter(trainer.filename)
+    plotter = Plotter(config)
     plotter.plot()
 
 

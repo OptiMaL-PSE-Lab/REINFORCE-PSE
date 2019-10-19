@@ -10,7 +10,7 @@ from torch import Tensor
 from tqdm import trange  # trange = tqdm(range(...))
 
 from initial_controls import multilabel_cheby_identifiers
-from utils import iterable, DIRS
+from utils import iterable
 from episodes import EpisodeSampler
 from policies import policy_selector
 
@@ -28,10 +28,8 @@ class Trainer:
         self.config = config
         self.policy = policy_selector(model, config)
 
-        self.filename = Path(
-            f"policy_{self.policy.__class__.__name__}_"
-            f"initial_controls_{self.config.initial_controls_labels}"
-        )
+        self.model_name = self.model.__class__.__name__
+        self.data_file = config.data_dir / f"{self.model_name}.hdf5"
 
     def pretrain(self, objective_controls, objective_deviation):
         """Trains parametric policy model to resemble desired starting function."""
@@ -113,9 +111,8 @@ class Trainer:
     def train(self, post_training=False):
         """Run the full episodic training schedule."""
 
-        filepath = DIRS["data"] / self.filename.with_suffix(".hdf5")
         try:  # check configuration consistency with target data file
-            with h5py.File(filepath, mode="r") as h5file:
+            with h5py.File(self.data_file, mode="r") as h5file:
                 for key, val in self.config.__dict__.items():
                     if type(h5file.attrs[key]) == np.ndarray:
                         if np.array_equal(h5file.attrs[key], val):
@@ -129,7 +126,7 @@ class Trainer:
                     )
         except OSError:  # non-existent file
             # store current configuration
-            with h5py.File(filepath) as h5file:  # mode="a"
+            with h5py.File(self.data_file) as h5file:  # mode="a"
                 for key, val in self.config.__dict__.items():
                     h5file.attrs[key] = val
 
@@ -177,20 +174,20 @@ class Trainer:
             recorder["rewards_mean"][iteration] = reward_mean
             recorder["rewards_std"][iteration] = reward_std
 
-            with h5py.File(filepath) as h5file:  # mode="a"
+            with h5py.File(self.data_file) as h5file:  # mode="a"
 
                 # dynamic configuration
                 seeds = h5file.attrs.get("seeds", np.array([]))
                 models = h5file.attrs.get("models", np.array([], dtype="S"))
                 # NOTE: h5py does not support fixed length unicode
-                model_ascii = np.string_(self.model.__class__.__name__)
+                model_ascii = np.string_(self.model_name)
                 if self.seed not in seeds:
                     h5file.attrs["seeds"] = np.append(seeds, self.seed)
                 if model_ascii not in models:
                     h5file.attrs["models"] = np.append(models, model_ascii)
 
                 group = h5file.create_group(
-                    f"seed_{self.seed}/model_{self.model.__class__.__name__}/iter_{iteration}"
+                    f"seed_{self.seed}/model_{self.model_name}/iter_{iteration}"
                 )
 
                 # gzip with given level of compression (0-9)
@@ -200,15 +197,13 @@ class Trainer:
 
             pbar.set_description(f"Roll-out mean reward: {reward_mean:.3} +- {reward_std:.2}")
 
-        with h5py.File(filepath) as h5file:
-            group = h5file[f"seed_{self.seed}/model_{self.model.__class__.__name__}"]
+        with h5py.File(self.data_file) as h5file:
+            group = h5file[f"seed_{self.seed}/model_{self.model_name}"]
             group.create_dataset("rewards_mean", data=recorder["rewards_mean"], compression=9)
             group.create_dataset("rewards_std", data=recorder["rewards_std"], compression=9)
 
         # store trained policy
-        policy_dir = DIRS["results"] / "policies" / self.filename
-        policy_dir.mkdir(exist_ok=True)
         torch.save(
             self.policy.state_dict(),
-            policy_dir / f"model_{self.model.__class__.__name__}.pt"
+            self.config.policies_dir / f"{self.model_name}.pt"
         )

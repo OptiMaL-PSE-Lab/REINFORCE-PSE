@@ -6,8 +6,6 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import seaborn as sns
 
-from utils import DIRS
-
 SMALL_SIZE = 6
 MEDIUM_SIZE = 8
 BIGGER_SIZE = 10
@@ -25,14 +23,12 @@ mpl.rc("figure", figsize=(6, 2))
 mpl.rc("savefig", bbox="tight", dpi=600)
 
 class Plotter:
-    "Plotting utilities from hdf5 data file."
+    "Plotting utilities from data files."
 
-    def __init__(self, filename):
-        self.filename = Path(filename)
-        self.filepath = DIRS["data"] / self.filename.with_suffix(".hdf5")
+    def __init__(self, config):
 
-        self.dirpath = DIRS["figures"] / self.filename
-        self.dirpath.mkdir(exist_ok=True)
+        self.config = config
+        self.filepath = config.data_dir
 
         with h5py.File(self.filepath, mode = "r") as h5file:
             self.seeds = h5file.attrs["seeds"]
@@ -115,7 +111,7 @@ class Plotter:
 
         episodes, timepoints, num_controls = controls_dataset.shape
 
-        time_points = self.trainer.config.time_points
+        time_points = self.config.time_points
         ticks = [f"{time_point:.2f}" for time_point in time_points]
 
         _, axes = plt.subplots(nrows=num_controls, ncols=1, squeeze=False, sharex=True)
@@ -129,134 +125,132 @@ class Plotter:
 
 
 
+    #     time_points = sorted(list(action_recorder.keys()))
+
+    #     num_controls = len(action_recorder[time_points[0]][0])
+    #     controls_lists = [[[] for time in time_points] for control in range(num_controls)]
+
+    #     for ind_time, time_point in enumerate(time_points):
+    #         recorded_controls = action_recorder[time_point]
+
+    #         for controls in recorded_controls:
+    #             for ind_control, control in enumerate(controls):
+    #                 controls_lists[ind_control][ind_time].append(control.item())
+
+    #     ticks = [f"{time_point:.2f}" for time_point in time_points]
+
+    #     _, axes = plt.subplots(nrows=num_controls, ncols=1, squeeze=False, sharex=True)
+
+    #     axes[0][0].set_title(f"iteration {iteration}")
+    #     axes[-1][0].set_xlabel("time")
+    #     # plt.xticks(range(len(ticks)), ticks)
+    #     for num_control, ax_row in enumerate(axes):
+    #         ax = ax_row[0]
+    #         sns.violinplot(
+    #             data=controls_lists[num_control],
+    #             ax=ax,
+    #             scale="width",
+    #             bw="silverman",
+    #             linewidth=0.8,
+    #         )
+    #         sns.despine(left=True, bottom=True, ax=ax)
+    #         ax.set_ylabel(f"control {num_control}")
+    #         ax.set_xticklabels(ticks)
+
+    #     if store_path is not None:
+    #         plt.savefig(store_path)
+
+    #     if show:
+    #         plt.show()
+    #     plt.close()
 
 
-        time_points = sorted(list(action_recorder.keys()))
+    # def plot_reward_evolution(
+    #     self, all_rewards, iteration, config, show=True, store_path=None
+    # ):
+    #     rewards = all_rewards[:iteration]
+    #     plt.plot(rewards)
+    #     plt.title(
+    #         f"batch size:{config.episode_batch} lr:{config.learning_rate} iteration:{iteration}"
+    #     )
+    #     plt.xlabel("iteration")
+    #     plt.ylabel("reward")
+    #     plt.xlim(-1, config.iterations + 1)
+    #     mini = min(all_rewards)
+    #     maxi = max(all_rewards)
+    #     width = maxi - mini
+    #     plt.ylim(mini - 0.1 * width, maxi + 0.1 * width)
 
-        num_controls = len(action_recorder[time_points[0]][0])
-        controls_lists = [[[] for time in time_points] for control in range(num_controls)]
-
-        for ind_time, time_point in enumerate(time_points):
-            recorded_controls = action_recorder[time_point]
-
-            for controls in recorded_controls:
-                for ind_control, control in enumerate(controls):
-                    controls_lists[ind_control][ind_time].append(control.item())
-
-        ticks = [f"{time_point:.2f}" for time_point in time_points]
-
-        _, axes = plt.subplots(nrows=num_controls, ncols=1, squeeze=False, sharex=True)
-
-        axes[0][0].set_title(f"iteration {iteration}")
-        axes[-1][0].set_xlabel("time")
-        # plt.xticks(range(len(ticks)), ticks)
-        for num_control, ax_row in enumerate(axes):
-            ax = ax_row[0]
-            sns.violinplot(
-                data=controls_lists[num_control],
-                ax=ax,
-                scale="width",
-                bw="silverman",
-                linewidth=0.8,
-            )
-            sns.despine(left=True, bottom=True, ax=ax)
-            ax.set_ylabel(f"control {num_control}")
-            ax.set_xticklabels(ticks)
-
-        if store_path is not None:
-            plt.savefig(store_path)
-
-        if show:
-            plt.show()
-        plt.close()
+    #     if store_path is not None:
+    #         plt.savefig(store_path)
+    #     if show:
+    #         plt.show()
+    #     plt.close()
 
 
-    def plot_reward_evolution(
-        self, all_rewards, iteration, config, show=True, store_path=None
-    ):
-        rewards = all_rewards[:iteration]
-        plt.plot(rewards)
-        plt.title(
-            f"batch size:{config.episode_batch} lr:{config.learning_rate} iteration:{iteration}"
-        )
-        plt.xlabel("iteration")
-        plt.ylabel("reward")
-        plt.xlim(-1, config.iterations + 1)
-        mini = min(all_rewards)
-        maxi = max(all_rewards)
-        width = maxi - mini
-        plt.ylim(mini - 0.1 * width, maxi + 0.1 * width)
+    # def plot(self):
+    #     "Plot everything from data"
 
-        if store_path is not None:
-            plt.savefig(store_path)
-        if show:
-            plt.show()
-        plt.close()
+    #     with h5py.File(self.filepath, mode="r") as h5file:
 
+    #         self.dataset_iterator(h5file, self.models[0], "rewards")
 
-    def plot(self):
-        "Plot everything from data"
+    #         # prepare directories for results
+    #         if not config.discard_graphics:
+    #             chebyshev_labels = config.initial_controls_labels
+    #             plots_dir = DIRS["figures"] / (
+    #                 f"policy_{policy.__class__.__name__}_"
+    #                 f"method_{config.policy_gradient_method}_"
+    #                 f"batch_{config.episode_batch}_"
+    #                 f"controls_{chebyshev_labels}"
+    #             )
+    #             plots_dir.mkdir(exist_ok=True)
 
-        with h5py.File(self.filepath, mode="r") as h5file:
-
-            self.dataset_iterator(h5file, self.models[0], "rewards")
-
-            # # prepare directories for results
-            # if not config.discard_graphics:
-            #     chebyshev_labels = config.initial_controls_labels
-            #     plots_dir = DIRS["figures"] / (
-            #         f"policy_{policy.__class__.__name__}_"
-            #         f"method_{config.policy_gradient_method}_"
-            #         f"batch_{config.episode_batch}_"
-            #         f"controls_{chebyshev_labels}"
-            #     )
-            #     plots_dir.mkdir(exist_ok=True)
-
-            # print(
-            #     f"""
-            #     Training for {self.config.iterations} iterations of
-            #     {self.config.episode_batch} sampled episodes each!
-            #     """
-            # )
+    #         print(
+    #             f"""
+    #             Training for {self.config.iterations} iterations of
+    #             {self.config.episode_batch} sampled episodes each!
+    #             """
+    #         )
 
 
-            #     if not config.discard_graphics:
+    #             if not config.discard_graphics:
 
-            #         plot_name = (
-            #             f"action_distribution_"
-            #             f"model_{model.__class__.__name__}_"
-            #             f"lr_{config.learning_rate}_"
-            #             f"iteration_{iteration:03d}.png"
-            #         )
-            #         if model.controls_dims == 2:
-            #             plot_sampled_biactions(
-            #                 action_recorder,
-            #                 iteration,
-            #                 show=False,
-            #                 store_path=plots_dir / plot_name,
-            #             )
-            #         else:
-            #             plot_sampled_actions(
-            #                 action_recorder,
-            #                 iteration,
-            #                 show=False,
-            #                 store_path=plots_dir / plot_name,
-            #             )
+    #                 plot_name = (
+    #                     f"action_distribution_"
+    #                     f"model_{model.__class__.__name__}_"
+    #                     f"lr_{config.learning_rate}_"
+    #                     f"iteration_{iteration:03d}.png"
+    #                 )
+    #                 if model.controls_dims == 2:
+    #                     plot_sampled_biactions(
+    #                         action_recorder,
+    #                         iteration,
+    #                         show=False,
+    #                         store_path=plots_dir / plot_name,
+    #                     )
+    #                 else:
+    #                     plot_sampled_actions(
+    #                         action_recorder,
+    #                         iteration,
+    #                         show=False,
+    #                         store_path=plots_dir / plot_name,
+    #                     )
 
-            # # NOTE: separated to have all rewards accesible to tune ylims accordingly
-            # if not config.discard_graphics:
-            #     for iteration in range(config.iterations):
-            #         plot_name = (
-            #             f"reward_"
-            #             f"model_{model.__class__.__name__}_"
-            #             f"lr_{config.learning_rate}_"
-            #             f"iteration_{iteration:03d}.png"
-            #         )
-            #         # TODO: plot reward with std
-            #         plot_reward_evolution(
-            #             recorder["rewards_mean"],
-            #             iteration,
-            #             config,
-            #             show=False,
-            #             store_path=plots_dir / plot_name,
-            #         )
+    #         # NOTE: separated to have all rewards accesible to tune ylims accordingly
+    #         if not config.discard_graphics:
+    #             for iteration in range(config.iterations):
+    #                 plot_name = (
+    #                     f"reward_"
+    #                     f"model_{model.__class__.__name__}_"
+    #                     f"lr_{config.learning_rate}_"
+    #                     f"iteration_{iteration:03d}.png"
+    #                 )
+    #                 # TODO: plot reward with std
+    #                 plot_reward_evolution(
+    #                     recorder["rewards_mean"],
+    #                     iteration,
+    #                     config,
+    #                     show=False,
+    #                     store_path=plots_dir / plot_name,
+    #                 )

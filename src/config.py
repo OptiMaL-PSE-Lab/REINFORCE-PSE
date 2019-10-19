@@ -1,6 +1,18 @@
 import argparse
+import datetime as dt
+from pathlib import Path
 
 import numpy as np
+
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+RESULTS_DIR = BASE_DIR / "results"
+
+RESULTS_DIR.mkdir(exist_ok=True)
+
+EPS = np.finfo(np.float32).eps.item()
+
 
 def set_configuration():
     """
@@ -42,7 +54,13 @@ def set_configuration():
     config.time_points = np.array(
         [config.ti + div * config.subinterval for div in range(config.divisions)]
     )
-
     config.initial_state = (1, 0)
+
+    config.datetime = dt.datetime.now().isoformat()
+
+    config.results_dir = RESULTS_DIR / config.datetime
+    config.data_dir = config.results_dir / "data"
+    config.figures_dir = config.results_dir / "data"
+    config.policies_dir = config.results_dir / "policies"
 
     return config
