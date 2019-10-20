@@ -6,6 +6,7 @@ from distributions import sample_actions, retrieve_sum_log_prob
 from tqdm import trange
 from config import EPS
 
+
 class EpisodeSampler:
     "Several algorithms to sample paths given a model and a policy."
 
@@ -13,18 +14,22 @@ class EpisodeSampler:
         self.model = model
         self.policy = policy
         self.config = config
+        
         self.recorder = {}
-
-        self.recorder["states"] = np.zeros(shape=(config.episode_batch, config.divisions, model.states_dims))
-        self.recorder["controls"] = np.zeros(shape=(config.episode_batch, config.divisions, model.controls_dims))
+        self.recorder["states"] = np.zeros(
+            shape=(config.episode_batch, config.divisions, model.states_dims)
+        )
+        self.recorder["controls"] = np.zeros(
+            shape=(config.episode_batch, config.divisions, model.controls_dims)
+        )
         self.recorder["rewards"] = np.zeros(shape=(config.episode_batch))
 
         self.episode_number = 0
 
     def record_state_control(self, states, controls, time_index):
         "Store the current state and controls of the episode."
-        self.recorder["states"][self.episode_number, time_index, : ] = states
-        self.recorder["controls"][self.episode_number, time_index, : ] = controls
+        self.recorder["states"][self.episode_number, time_index, :] = states
+        self.recorder["controls"][self.episode_number, time_index, :] = controls
 
     def record_reward(self, reward):
         "Store the reward of the episode"
@@ -42,7 +47,9 @@ class EpisodeSampler:
         for time_index, _ in enumerate(self.config.time_points):
 
             timed_state = Tensor((*current_state, self.config.tf - t))
-            (means, sigmas), hidden_state = self.policy(timed_state, hidden_state=hidden_state)
+            (means, sigmas), hidden_state = self.policy(
+                timed_state, hidden_state=hidden_state
+            )
             controls, sum_log_prob = sample_actions(means, sigmas)
 
             sum_log_probs = sum_log_probs + sum_log_prob
@@ -61,7 +68,6 @@ class EpisodeSampler:
 
         return reward, sum_log_probs
 
-
     def episode_ppo(self, policy_old=None):
         """Compute a single episode given a policy and track useful quantities for learning."""
 
@@ -74,7 +80,9 @@ class EpisodeSampler:
         for time_index, _ in enumerate(self.config.time_points):
 
             timed_state = Tensor((*current_state, self.config.tf - t))
-            (means, sigmas), hidden_state = self.policy(timed_state, hidden_state=hidden_state)
+            (means, sigmas), hidden_state = self.policy(
+                timed_state, hidden_state=hidden_state
+            )
             controls, sum_log_prob = sample_actions(means, sigmas)
 
             # NOTE: probability of same action under older distribution
@@ -83,7 +91,9 @@ class EpisodeSampler:
                 sum_log_prob_old = sum_log_prob
             else:
                 means_old, sigmas_old = policy_old(timed_state)
-                sum_log_prob_old = retrieve_sum_log_prob(means_old, sigmas_old, controls)
+                sum_log_prob_old = retrieve_sum_log_prob(
+                    means_old, sigmas_old, controls
+                )
 
             prob_ratio = (sum_log_prob - sum_log_prob_old).exp()
             prob_ratios.append(prob_ratio)
@@ -101,7 +111,6 @@ class EpisodeSampler:
         self.episode_number += 1
 
         return reward, prob_ratios
-
 
     def sample_episodes_reinforce(self):
         """
@@ -128,7 +137,6 @@ class EpisodeSampler:
 
         mean_log_prob_R = log_prob_R / self.config.episode_batch
         return mean_log_prob_R, reward_mean, reward_std
-
 
     def sample_episodes_ppo(self, policy_old=None, epsilon=0.3):
         """

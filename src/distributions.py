@@ -1,9 +1,7 @@
-import numpy as np
-
 from torch.distributions import Beta, TransformedDistribution
 from torch.distributions.transforms import AffineTransform
 
-from utils import EPS
+from config import EPS
 
 
 def forge_distribution(mean, sigma, lower_limit=0.0, upper_limit=5.0):

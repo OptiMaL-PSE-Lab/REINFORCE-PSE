@@ -1,10 +1,7 @@
 """Utility functions."""
 
-from pathlib import Path
 from numbers import Number
 from itertools import zip_longest
-
-import numpy as np
 
 
 def ceildiv(num, den):
@@ -16,7 +13,7 @@ def grouper(iterable, n, fillvalue=None):
     "Collect data into fixed-length chunks or blocks"
     # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx"
     args = [iter(iterable)] * n
-    return zip_longest(*args, fillvalue=fillvalue)
+    return list(zip_longest(*args, fillvalue=fillvalue))
 
 
 def affine_transform(x, original_low, original_high, desired_low, desired_high):
@@ -33,7 +30,7 @@ def affine_transform(x, original_low, original_high, desired_low, desired_high):
     return x
 
 
-def iterable(controls):
+def iterable_container(controls):
     """Wrap control(s) in a iterable container."""
     if isinstance(controls, Number):
         return (controls,)

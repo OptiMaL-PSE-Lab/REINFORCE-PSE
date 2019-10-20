@@ -1,7 +1,6 @@
 import copy
-from datetime import datetime
 import sys
-from pathlib import Path
+from pathlib import PurePath
 
 import h5py
 import numpy as np
@@ -9,8 +8,7 @@ import torch
 from torch import Tensor
 from tqdm import trange  # trange = tqdm(range(...))
 
-from initial_controls import multilabel_cheby_identifiers
-from utils import iterable
+from utils import iterable_container
 from episodes import EpisodeSampler
 from policies import policy_selector
 
@@ -24,12 +22,17 @@ class Trainer:
         print(f"Using random seed {self.seed}!")
         torch.manual_seed(self.seed)
 
-        self.model = model
         self.config = config
         self.policy = policy_selector(model, config)
 
+        self.set_model(model)
+    
+    def set_model(self, model):
+        "Sets all fields related to the model"
+        self.model = model
         self.model_name = self.model.__class__.__name__
-        self.data_file = config.data_dir / f"{self.model_name}.hdf5"
+        self.data_file = self.config.data_dir / f"{self.model_name}.hdf5"
+        self.policy_file = self.config.policies_dir / f"{self.model_name}.pt"
 
     def pretrain(self, objective_controls, objective_deviation):
         """Trains parametric policy model to resemble desired starting function."""
@@ -49,6 +52,7 @@ class Trainer:
         )
 
         # use tensors to track gradients
+        # pylint: disable=not-callable  # https://github.com/pytorch/pytorch/issues/24807
         objective_controls = torch.tensor(objective_controls)
         objective_deviations = torch.tensor(
             [(objective_deviation,) * num_controls for _ in self.config.time_points]
@@ -85,19 +89,20 @@ class Trainer:
                 uncertainties[ind] = sigmas
 
                 # follow objective integration trajectory
-                controls = iterable(objective_controls[ind])
+                controls = iterable_container(objective_controls[ind])
 
                 current_state = self.model.step(
                     current_state, controls, self.config.subinterval, initial_time=t
                 )
                 t = t + self.config.subinterval
 
-            # gather predictions of current policy
-            predicted_controls = torch.stack(predictions)
-            predicted_deviations = torch.stack(uncertainties)
-
-            # optimize policy
             def closure():
+
+                # gather predictions of current policy
+                predicted_controls = torch.stack(predictions)
+                predicted_deviations = torch.stack(uncertainties)
+
+                # optimize policy
                 optimizer.zero_grad()
                 loss = criterion(objective_controls, predicted_controls) + criterion(
                     objective_deviations, predicted_deviations
@@ -114,20 +119,26 @@ class Trainer:
         try:  # check configuration consistency with target data file
             with h5py.File(self.data_file, mode="r") as h5file:
                 for key, val in self.config.__dict__.items():
-                    if type(h5file.attrs[key]) == np.ndarray:
-                        if np.array_equal(h5file.attrs[key], val):
+                    stored_val = h5file.attrs[key]
+                    if isinstance(stored_val, np.ndarray):
+                        if np.array_equal(stored_val, val):
+                            continue
+                    if isinstance(val, PurePath):
+                        if str(val) == stored_val:
                             continue
                     if h5file.attrs[key] == val:
                         continue
                     raise RuntimeWarning(
                         f"Non matching config {key}!\n"
                         f"Current: {val}\n"
-                        f"Stored: {h5file.attrs[key]}!"
+                        f"Stored: {stored_val}!"
                     )
         except OSError:  # non-existent file
             # store current configuration
             with h5py.File(self.data_file) as h5file:  # mode="a"
                 for key, val in self.config.__dict__.items():
+                    if isinstance(val, PurePath):
+                        val = str(val)
                     h5file.attrs[key] = val
 
         if post_training:
@@ -176,11 +187,11 @@ class Trainer:
 
             with h5py.File(self.data_file) as h5file:  # mode="a"
 
-                # dynamic configuration
-                seeds = h5file.attrs.get("seeds", np.array([]))
-                models = h5file.attrs.get("models", np.array([], dtype="S"))
                 # NOTE: h5py does not support fixed length unicode
                 model_ascii = np.string_(self.model_name)
+                seeds = h5file.attrs.get("seeds", np.array([], dtype=int))
+                models = h5file.attrs.get("models", np.array([], dtype="S"))
+
                 if self.seed not in seeds:
                     h5file.attrs["seeds"] = np.append(seeds, self.seed)
                 if model_ascii not in models:
@@ -191,19 +202,28 @@ class Trainer:
                 )
 
                 # gzip with given level of compression (0-9)
-                group.create_dataset("states", data=ep_sampler.recorder["states"], compression=9)
-                group.create_dataset("controls", data=ep_sampler.recorder["controls"], compression=9)
-                group.create_dataset("rewards", data=ep_sampler.recorder["rewards"], compression=9)
+                group.create_dataset(
+                    "states", data=ep_sampler.recorder["states"], compression=9
+                )
+                group.create_dataset(
+                    "controls", data=ep_sampler.recorder["controls"], compression=9
+                )
+                group.create_dataset(
+                    "rewards", data=ep_sampler.recorder["rewards"], compression=9
+                )
 
-            pbar.set_description(f"Roll-out mean reward: {reward_mean:.3} +- {reward_std:.2}")
+            pbar.set_description(
+                f"Roll-out mean reward: {reward_mean:.3} +- {reward_std:.2}"
+            )
 
         with h5py.File(self.data_file) as h5file:
             group = h5file[f"seed_{self.seed}/model_{self.model_name}"]
-            group.create_dataset("rewards_mean", data=recorder["rewards_mean"], compression=9)
-            group.create_dataset("rewards_std", data=recorder["rewards_std"], compression=9)
+            group.create_dataset(
+                "rewards_mean", data=recorder["rewards_mean"], compression=9
+            )
+            group.create_dataset(
+                "rewards_std", data=recorder["rewards_std"], compression=9
+            )
 
         # store trained policy
-        torch.save(
-            self.policy.state_dict(),
-            self.config.policies_dir / f"{self.model_name}.pt"
-        )
+        torch.save(self.policy.state_dict(), self.policy_file)

@@ -35,7 +35,7 @@ def training_pipeline(config, desired_controls, desired_deviation):
     trainer.train()
 
     # more complex variation of same ODE model
-    trainer.model = ComplexModel()
+    trainer.set_model(ComplexModel())
 
     # freeze all policy layers except last ones
     shift_grad_tracking(trainer.policy, False)
@@ -47,7 +47,7 @@ def training_pipeline(config, desired_controls, desired_deviation):
 
     # # plot results
     plotter = Plotter(config)
-    plotter.plot()
+    # plotter.plot()
 
 
 def full_process(coef_ord_tuple_pair):
@@ -77,6 +77,9 @@ def main():
 
     print(f"Using {CONFIG.processes} processes from {mp.cpu_count()} available.")
 
+    # NOTE: maybe generalize this to n-component systems (for now 2 components)
+    coef_ord_combos = random_coeff_order_combinations(2 * CONFIG.processes)
+
     if CONFIG.processes > 1:
 
         # required to use vscode debugger with "subProcess": true in launch.json configuration
@@ -89,14 +92,9 @@ def main():
             processes=CONFIG.processes
         ) as pool:  # uses all available processes by default
 
-            coef_ord_combos = random_coeff_order_combinations(2 * pool._processes)
-
             for res in pool.imap_unordered(full_process, grouper(coef_ord_combos, 2)):
-
                 print(res)
-
     else:
-        coef_ord_combos = random_coeff_order_combinations(2)
         full_process(coef_ord_combos)
 
 

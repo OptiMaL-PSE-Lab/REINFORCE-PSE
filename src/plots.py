@@ -30,6 +30,7 @@ class Plotter:
         self.config = config
         self.filepath = config.data_dir
 
+        # FIXME: take both models into account
         with h5py.File(self.filepath, mode = "r") as h5file:
             self.seeds = h5file.attrs["seeds"]
             self.models = h5file.attrs["models"]
@@ -49,7 +50,7 @@ class Plotter:
         "Iterate over each iteration & seed keeping model constant"
         assert model in h5file.attrs["models"], f"Available models are {self.models}"
         seeds = h5file.attrs["seeds"]
-        # FIXME
+        # FIXME 
         first_group = h5file[f"seed_{seeds[0]}/model_{model.__class__.__name__}"]
         iterations = sum(first_group.visititems(self.dataset_flag))
         datasets = []

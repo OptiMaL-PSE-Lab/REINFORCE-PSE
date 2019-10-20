@@ -60,7 +60,12 @@ def set_configuration():
 
     config.results_dir = RESULTS_DIR / config.datetime
     config.data_dir = config.results_dir / "data"
-    config.figures_dir = config.results_dir / "data"
+    config.figures_dir = config.results_dir / "figures"
     config.policies_dir = config.results_dir / "policies"
+
+    config.results_dir.mkdir()
+    config.data_dir.mkdir()
+    config.figures_dir.mkdir()
+    config.policies_dir.mkdir()
 
     return config
