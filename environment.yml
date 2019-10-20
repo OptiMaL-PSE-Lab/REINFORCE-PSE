@@ -11,6 +11,7 @@ dependencies:
   - gpytorch=0.3.*
   - scipy=1.*
   - hdf5=1.*
+  - ruamel.yaml=0.16.*
   - matplotlib=3.*
   - seaborn=0.9
   - tqdm=4.*

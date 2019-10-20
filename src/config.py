@@ -3,13 +3,12 @@ import datetime as dt
 from pathlib import Path
 
 import numpy as np
-
+from ruamel.yaml import YAML
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-RESULTS_DIR = BASE_DIR / "results"
-
-RESULTS_DIR.mkdir(exist_ok=True)
+BASE_RESULTS_DIR = BASE_DIR / "results"
+BASE_RESULTS_DIR.mkdir(exist_ok=True)
 
 EPS = np.finfo(np.float32).eps.item()
 
@@ -47,7 +46,27 @@ def set_configuration():
 
     config = parser.parse_args()
 
+    config.datetime = dt.datetime.now().isoformat()
+
+    results_dir = BASE_RESULTS_DIR / config.datetime
+    results_dir.mkdir()
+
+    # Store raw configuration in results destination
+    yaml = YAML(typ='safe')
+    yaml.default_flow_style = False
+    yaml.dump(config.__dict__, results_dir / "config.yaml")
+
     # Add custom attributes to same config object for simplicity
+
+    config.results_dir = results_dir
+    config.data_dir = results_dir / "data"
+    config.figures_dir = results_dir / "figures"
+    config.policies_dir = results_dir / "policies"
+
+    config.data_dir.mkdir()
+    config.figures_dir.mkdir()
+    config.policies_dir.mkdir()
+
     config.ti = 0
     config.tf = 1
     config.subinterval = (config.tf - config.ti) / config.divisions
@@ -55,17 +74,5 @@ def set_configuration():
         [config.ti + div * config.subinterval for div in range(config.divisions)]
     )
     config.initial_state = (1, 0)
-
-    config.datetime = dt.datetime.now().isoformat()
-
-    config.results_dir = RESULTS_DIR / config.datetime
-    config.data_dir = config.results_dir / "data"
-    config.figures_dir = config.results_dir / "figures"
-    config.policies_dir = config.results_dir / "policies"
-
-    config.results_dir.mkdir()
-    config.data_dir.mkdir()
-    config.figures_dir.mkdir()
-    config.policies_dir.mkdir()
 
     return config
