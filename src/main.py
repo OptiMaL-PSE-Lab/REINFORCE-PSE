@@ -35,7 +35,8 @@ def training_pipeline(config, desired_controls, desired_deviation):
     trainer.train()
 
     # more complex variation of same ODE model
-    trainer.set_model(ComplexModel())
+    new_model = ComplexModel()
+    trainer.set_model(new_model)
 
     # freeze all policy layers except last ones
     shift_grad_tracking(trainer.policy, False)
@@ -44,10 +45,6 @@ def training_pipeline(config, desired_controls, desired_deviation):
 
     # retrain on-policy last layers
     trainer.train(post_training=True)
-
-    # # plot results
-    plotter = Plotter(config)
-    # plotter.plot()
 
 
 def full_process(coef_ord_tuple_pair):
@@ -66,9 +63,13 @@ def full_process(coef_ord_tuple_pair):
     config.initial_controls_labels = labels
     print(f"Initial controls {labels}")
 
+    # repeat simulation with different seeds
     for _ in range(config.distinct_seeds):
-
         training_pipeline(config, desired_controls, desired_deviation)
+
+    # plot results
+    plotter = Plotter(config)
+    plotter.playground()
 
     return coef_ord_tuple_pair
 

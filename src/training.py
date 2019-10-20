@@ -19,19 +19,18 @@ class Trainer:
     def __init__(self, model, config):
 
         self.seed = np.random.randint(sys.maxsize)  # maxsize = 2**63 - 1
-        print(f"Using random seed {self.seed}!")
+        print(f"Using torch random seed {self.seed}!")
         torch.manual_seed(self.seed)
 
         self.config = config
         self.policy = policy_selector(model, config)
 
         self.set_model(model)
-    
+
     def set_model(self, model):
         "Sets all fields related to the model"
         self.model = model
         self.model_name = self.model.__class__.__name__
-        self.data_file = self.config.data_dir / f"{self.model_name}.hdf5"
         self.policy_file = self.config.policies_dir / f"{self.model_name}.pt"
 
     def pretrain(self, objective_controls, objective_deviation):
@@ -117,7 +116,7 @@ class Trainer:
         """Run the full episodic training schedule."""
 
         try:  # check configuration consistency with target data file
-            with h5py.File(self.data_file, mode="r") as h5file:
+            with h5py.File(self.config.data_file, mode="r") as h5file:
                 for key, val in self.config.__dict__.items():
                     stored_val = h5file.attrs[key]
                     if isinstance(stored_val, np.ndarray):
@@ -135,7 +134,7 @@ class Trainer:
                     )
         except OSError:  # non-existent file
             # store current configuration
-            with h5py.File(self.data_file) as h5file:  # mode="a"
+            with h5py.File(self.config.data_file) as h5file:  # mode="a"
                 for key, val in self.config.__dict__.items():
                     if isinstance(val, PurePath):
                         val = str(val)
@@ -147,11 +146,6 @@ class Trainer:
         else:
             iterations = self.config.iterations
             learning_rate = self.config.learning_rate
-
-        recorder = {
-            "rewards_mean": np.zeros(shape=(iterations)),
-            "rewards_std": np.zeros(shape=(iterations)),
-        }
 
         optimizer = torch.optim.Adam(self.policy.parameters(), lr=learning_rate)
 
@@ -181,13 +175,9 @@ class Trainer:
                 surrogate_mean.backward(retain_graph=True)
                 optimizer.step()
 
-            # store mean episode reward
-            recorder["rewards_mean"][iteration] = reward_mean
-            recorder["rewards_std"][iteration] = reward_std
+            with h5py.File(self.config.data_file) as h5file:  # mode="a"
 
-            with h5py.File(self.data_file) as h5file:  # mode="a"
-
-                # NOTE: h5py does not support fixed length unicode
+                # NOTE: h5py does not support unicode directly
                 model_ascii = np.string_(self.model_name)
                 seeds = h5file.attrs.get("seeds", np.array([], dtype=int))
                 models = h5file.attrs.get("models", np.array([], dtype="S"))
@@ -197,32 +187,25 @@ class Trainer:
                 if model_ascii not in models:
                     h5file.attrs["models"] = np.append(models, model_ascii)
 
-                group = h5file.create_group(
-                    f"seed_{self.seed}/model_{self.model_name}/iter_{iteration}"
-                )
+                base_path = f"model_{self.model_name}/iter_{iteration}/"
+                states_group = h5file.require_group(base_path + "states")
+                controls_group = h5file.require_group(base_path + "controls")
+                rewards_group = h5file.require_group(base_path + "rewards")
 
                 # gzip with given level of compression (0-9)
-                group.create_dataset(
-                    "states", data=ep_sampler.recorder["states"], compression=9
+                seed_flag = f"seed_{self.seed}"
+                states_group.create_dataset(
+                    seed_flag, data=ep_sampler.recorder["states"], compression=9
                 )
-                group.create_dataset(
-                    "controls", data=ep_sampler.recorder["controls"], compression=9
+                controls_group.create_dataset(
+                    seed_flag, data=ep_sampler.recorder["controls"], compression=9
                 )
-                group.create_dataset(
-                    "rewards", data=ep_sampler.recorder["rewards"], compression=9
+                rewards_group.create_dataset(
+                    seed_flag, data=ep_sampler.recorder["rewards"], compression=9
                 )
 
             pbar.set_description(
                 f"Roll-out mean reward: {reward_mean:.3} +- {reward_std:.2}"
-            )
-
-        with h5py.File(self.data_file) as h5file:
-            group = h5file[f"seed_{self.seed}/model_{self.model_name}"]
-            group.create_dataset(
-                "rewards_mean", data=recorder["rewards_mean"], compression=9
-            )
-            group.create_dataset(
-                "rewards_std", data=recorder["rewards_std"], compression=9
             )
 
         # store trained policy

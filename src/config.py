@@ -59,11 +59,10 @@ def set_configuration():
     # Add custom attributes to same config object for simplicity
 
     config.results_dir = results_dir
-    config.data_dir = results_dir / "data"
     config.figures_dir = results_dir / "figures"
     config.policies_dir = results_dir / "policies"
+    config.data_file = results_dir / "data.hdf5"
 
-    config.data_dir.mkdir()
     config.figures_dir.mkdir()
     config.policies_dir.mkdir()
 

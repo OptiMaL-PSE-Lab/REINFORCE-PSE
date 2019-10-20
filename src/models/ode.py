@@ -1,6 +1,5 @@
 from itertools import chain
 
-import numpy as np
 import scipy.integrate as scp
 
 from . import AbstractModel
