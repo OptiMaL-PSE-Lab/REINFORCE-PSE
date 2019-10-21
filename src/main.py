@@ -69,7 +69,8 @@ def full_process(coef_ord_tuple_pair):
 
     # plot results
     plotter = Plotter(config)
-    plotter.playground()
+    plotter.plot_everything("SimpleModel", config.iterations)
+    plotter.plot_everything("ComplexModel", config.post_iterations)
 
     return coef_ord_tuple_pair
 
