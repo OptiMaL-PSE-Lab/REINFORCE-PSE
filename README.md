@@ -4,9 +4,9 @@ We use reinforcement learning techniques to optimize continuum controls over che
 modelled via ODE systems. The controls are free parameters of the ODE system and the reward
 is a variable of the system, which represents a byproduct of the chemical reaction over time.
 
-## Surrogate ODE systems
+## ODE systems models
 
-ODE systems represent a surrogate approximation of real-word chemical systems.
+ODE systems represent an approximation of real-word chemical systems.
 Closer approximations to reality involve more complex surrogate models.
 Here we study an approach to optimize the controls of a system over a simple ODE model to later ease the study of optimal controls over a more complex yet closely related ODE model.
 
@@ -53,19 +53,19 @@ Transfer learning techniques help to leverage the inner weights if the policy le
 
 ## Code execution
 
-Run `python main.py` to execute the whole logic:
+Run `python main.py` to execute the whole logic (use `--help` for a list of available parameters):
 
-* Pretrain policy with linearly increasing controls over time.
+* Pretrain policy to yield predefined function forms that satisfy the constraints.
 * Train policy for large iterations over simpler model.
 * Freeze inner weights of policies and retrain last layers with complex model with fewer iterations.
 
-Current reward is printed over console and relevant profiles are stored in a `./figures/` subdirectory.
+Evolving reward is printed over console. Relevant data is stored in `results/.../data` and relevant profiles are stored in a `results/.../figures/`.
 
 Main parameters (more available in command line interface from `main.py`):
 
 * method: 'ppo' or 'reinforce'
 * episode-batch: number of sample episodes run to estimate loss function
-* chained-steps: gradient descent steps taken after episode sampling (usually 1 for REINFORCE and ~5 for PPO)
+* chained-steps: gradient descent steps taken after episode sampling (usually 1 for REINFORCE and ~3 for PPO)
 * iterations: repetitions of sampling and optimize step
 
 ### Evolution of action distributions of sampled episodes
