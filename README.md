@@ -16,19 +16,19 @@ The initial conditions are fixed: $`y_1 = 1`$, $`y_2 = 0`$
 
 ### Simple system
 
-$` \dot{y_1} = -(U_1 + a  U_1 ^ 2)  y_1 + d  U_2 `$
+$` \dot{y_1} = -(U_1 + \alpha  U_1 ^ 2)  y_1 + \omega  U_2 `$
 
-$` \dot{y_2} = (b  U_1 - c  U_2)  y_1 `$
+$` \dot{y_2} = (\beta  U_1 - \gamma  U_2)  y_1 `$
 
-**Parameters**: $` a, b, c, d = 0.5, 1.0, 0.7, 0.5 `$
+**Parameters**: $` \alpha, \beta, \gamma, \omega = 0.5, 1.0, 0.7, 0.5 `$
 
 ### Complex system
 
-$` \dot{y_1} = -(U_1 + a  U_2 ^ 2)  y_1 + d  U_2  y_2 / (y_1 + y_2) `$
+$` \dot{y_1} = -(U_1 + \alpha  U_2 ^ 2)  y_1 + \omega  U_2  y_2 / (y_1 + y_2) `$
 
-$` \dot{y_2} = (b  U_1 - c  U_2)  y_1 `$
+$` \dot{y_2} = (\beta  U_1 - \gamma  U_2)  y_1 `$
 
-**Parameters**: $` a, b, c, d = 0.5, 1.0, 1.0, 1.0 `$
+**Parameters**: $` \alpha, \beta, \gamma, \omega = 0.5, 1.0, 1.0, 1.0 `$
 
 ## Policy gradients
 
@@ -59,9 +59,9 @@ Run `python main.py` to execute the whole logic (use `--help` for a list of avai
 * Train policy for large iterations over simpler model.
 * Freeze inner weights of policies and retrain last layers with complex model with fewer iterations.
 
-Evolving reward is printed over console. Relevant data is stored in `results/.../data` and relevant profiles are stored in a `results/.../figures/`.
+Relevant data and plots are stored in `results/_execution_datetime_/...`. Hyperparameters of the run are stored in a yaml config file inside.
 
-Main parameters (more available in command line interface from `main.py`):
+Main parameters (more available in command line interface from `main.py`) are:
 
 * method: 'ppo' or 'reinforce'
 * episode-batch: number of sample episodes run to estimate loss function
