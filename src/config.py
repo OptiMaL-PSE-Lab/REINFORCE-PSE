@@ -1,4 +1,16 @@
 import argparse
+import datetime as dt
+from pathlib import Path
+
+import numpy as np
+from ruamel.yaml import YAML
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+BASE_RESULTS_DIR = BASE_DIR / "results"
+BASE_RESULTS_DIR.mkdir(exist_ok=True)
+
+EPS = np.finfo(np.float32).eps.item()
 
 
 def set_configuration():
@@ -11,6 +23,7 @@ def set_configuration():
     )
 
     parser.add_argument("-pr", "--processes", type=int, default=1)
+    parser.add_argument("-ds", "--distinct-seeds", type=int, default=5)
     parser.add_argument("-div", "--divisions", type=int, default=20)
     parser.add_argument("-nl", "--number-layers", type=int, default=2)
     parser.add_argument("-ls", "--layers-size", type=int, default=25)
@@ -33,14 +46,32 @@ def set_configuration():
 
     config = parser.parse_args()
 
+    config.datetime = dt.datetime.now().isoformat()
+
+    results_dir = BASE_RESULTS_DIR / config.datetime
+    results_dir.mkdir()
+
+    # Store raw configuration in results destination
+    yaml = YAML(typ='safe')
+    yaml.default_flow_style = False
+    yaml.dump(config.__dict__, results_dir / "config.yaml")
+
     # Add custom attributes to same config object for simplicity
+
+    config.results_dir = results_dir
+    config.figures_dir = results_dir / "figures"
+    config.policies_dir = results_dir / "policies"
+    config.data_file = results_dir / "data.hdf5"
+
+    config.figures_dir.mkdir()
+    config.policies_dir.mkdir()
+
     config.ti = 0
     config.tf = 1
     config.subinterval = (config.tf - config.ti) / config.divisions
-    config.time_points = [
-        config.ti + div * config.subinterval for div in range(config.divisions)
-    ]
-
+    config.time_points = np.array(
+        [config.ti + div * config.subinterval for div in range(config.divisions)]
+    )
     config.initial_state = (1, 0)
 
     return config

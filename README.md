@@ -4,9 +4,9 @@ We use reinforcement learning techniques to optimize continuum controls over che
 modelled via ODE systems. The controls are free parameters of the ODE system and the reward
 is a variable of the system, which represents a byproduct of the chemical reaction over time.
 
-## Surrogate ODE systems
+## ODE systems models
 
-ODE systems represent a surrogate approximation of real-word chemical systems.
+ODE systems represent an approximation of real-word chemical systems.
 Closer approximations to reality involve more complex surrogate models.
 Here we study an approach to optimize the controls of a system over a simple ODE model to later ease the study of optimal controls over a more complex yet closely related ODE model.
 
@@ -16,19 +16,19 @@ The initial conditions are fixed: $`y_1 = 1`$, $`y_2 = 0`$
 
 ### Simple system
 
-$` \dot{y_1} = -(U_1 + a  U_1 ^ 2)  y_1 + d  U_2 `$
+$` \dot{y_1} = -(U_1 + \alpha  U_1 ^ 2)  y_1 + \omega  U_2 `$
 
-$` \dot{y_2} = (b  U_1 - c  U_2)  y_1 `$
+$` \dot{y_2} = (\beta  U_1 - \gamma  U_2)  y_1 `$
 
-**Parameters**: $` a, b, c, d = 0.5, 1.0, 0.7, 0.5 `$
+**Parameters**: $` \alpha, \beta, \gamma, \omega = 0.5, 1.0, 0.7, 0.5 `$
 
 ### Complex system
 
-$` \dot{y_1} = -(U_1 + a  U_2 ^ 2)  y_1 + d  U_2  y_2 / (y_1 + y_2) `$
+$` \dot{y_1} = -(U_1 + \alpha  U_2 ^ 2)  y_1 + \omega  U_2  y_2 / (y_1 + y_2) `$
 
-$` \dot{y_2} = (b  U_1 - c  U_2)  y_1 `$
+$` \dot{y_2} = (\beta  U_1 - \gamma  U_2)  y_1 `$
 
-**Parameters**: $` a, b, c, d = 0.5, 1.0, 1.0, 1.0 `$
+**Parameters**: $` \alpha, \beta, \gamma, \omega = 0.5, 1.0, 1.0, 1.0 `$
 
 ## Policy gradients
 
@@ -53,19 +53,19 @@ Transfer learning techniques help to leverage the inner weights if the policy le
 
 ## Code execution
 
-Run `python main.py` to execute the whole logic:
+Run `python main.py` to execute the whole logic (use `--help` for a list of available parameters):
 
-* Pretrain policy with linearly increasing controls over time.
+* Pretrain policy to yield predefined function forms that satisfy the constraints.
 * Train policy for large iterations over simpler model.
 * Freeze inner weights of policies and retrain last layers with complex model with fewer iterations.
 
-Current reward is printed over console and relevant profiles are stored in a `./figures/` subdirectory.
+Relevant data and plots are stored in `results/_execution_datetime_/...`. Hyperparameters of the run are stored in a yaml config file inside.
 
-Main parameters (more available in command line interface from `main.py`):
+Main parameters (more available in command line interface from `main.py`) are:
 
 * method: 'ppo' or 'reinforce'
 * episode-batch: number of sample episodes run to estimate loss function
-* chained-steps: gradient descent steps taken after episode sampling (usually 1 for REINFORCE and ~5 for PPO)
+* chained-steps: gradient descent steps taken after episode sampling (usually 1 for REINFORCE and ~3 for PPO)
 * iterations: repetitions of sampling and optimize step
 
 ### Evolution of action distributions of sampled episodes
