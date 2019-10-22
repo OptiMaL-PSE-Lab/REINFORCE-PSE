@@ -24,8 +24,9 @@ mpl.rc("savefig", bbox="tight", dpi=600)
 class Plotter:
     "Plotting utilities from data files."
 
-    def __init__(self, config):
+    def __init__(self, model_name, config):
 
+        self.model_name = model_name
         self.config = config
 
         with h5py.File(config.data_file, mode="r") as h5file:
@@ -33,28 +34,34 @@ class Plotter:
             self.models = h5file.attrs["models"]
             self.time_points = h5file.attrs["time_points"]
 
-    def samples_stack(self, model, iteration, variable):
+            model_group = h5file[f"model_{self.model_name}"]
+            self.iterations = model_group.attrs["iterations"]
+            self.learning_rate = model_group.attrs["learning_rate"]
+
+    def samples_stack(self, iteration, variable):
         "Retrieve and stack datasets corresponding to distinct random seeds."
 
         assert variable in {"states", "controls", "rewards"}
 
         def path_forger(seed):
-            return f"model_{model}/iter_{iteration}/{variable}/seed_{seed}"
+            return f"model_{self.model_name}/iter_{iteration}/{variable}/seed_{seed}"
 
         with h5py.File(self.config.data_file, mode="r") as h5file:
+            # pylint: disable=not-an-iterable  # pylint shortcoming
             datasets = [h5file[path_forger(seed)][:] for seed in self.seeds]
 
         return np.stack(datasets, axis=0)  # stack over new dimension as first new index
 
-    def plot_sampled_biactions(self, model, iterations):
+    # TODO: handle this n-controls case
+    def plot_sampled_biactions(self):
 
-        figures_dir = self.config.figures_dir / f"model_{model}" / "actions"
+        figures_dir = self.config.figures_dir / f"model_{self.model_name}" / "actions"
         figures_dir.mkdir(parents=True)
 
-        for iteration in range(iterations):
+        for iteration in range(self.iterations):
 
             # dataset_shape : (seeds, rool_outs, time, control_dim)
-            controls_dataset = self.samples_stack(model, iteration, "controls")
+            controls_dataset = self.samples_stack(iteration, "controls")
             num_controls = controls_dataset.shape[-1]
 
             assert (
@@ -98,59 +105,15 @@ class Plotter:
             # plt.show()
             plt.close()
 
-    # def plot_sampled_actions(self, model, iteration, show=True):
+    def plot_state_evolution(self):
 
-    #     # TODO: handle this n-controls case
-    #     time_points = sorted(list(action_recorder.keys()))
-
-    #     num_controls = len(action_recorder[time_points[0]][0])
-    #     controls_lists = [
-    #         [[] for time in time_points] for control in range(num_controls)
-    #     ]
-
-    #     for ind_time, time_point in enumerate(time_points):
-    #         recorded_controls = action_recorder[time_point]
-
-    #         for controls in recorded_controls:
-    #             for ind_control, control in enumerate(controls):
-    #                 controls_lists[ind_control][ind_time].append(control.item())
-
-    #     ticks = [f"{time_point:.2f}" for time_point in time_points]
-
-    #     _, axes = plt.subplots(nrows=num_controls, ncols=1, squeeze=False, sharex=True)
-
-    #     axes[0][0].set_title(f"iteration {iteration}")
-    #     axes[-1][0].set_xlabel("time")
-    #     # plt.xticks(range(len(ticks)), ticks)
-    #     for num_control, ax_row in enumerate(axes):
-    #         ax = ax_row[0]
-    #         sns.violinplot(
-    #             data=controls_lists[num_control],
-    #             ax=ax,
-    #             scale="width",
-    #             bw="silverman",
-    #             linewidth=0.8,
-    #         )
-    #         sns.despine(left=True, bottom=True, ax=ax)
-    #         ax.set_ylabel(f"control {num_control}")
-    #         ax.set_xticklabels(ticks)
-
-    #     plt.savefig(
-    #         self.config.figures_dir / f"model_{model}" / "actions" / f"iter_{iteration}"
-    #     )
-    #     if show:
-    #         plt.show()
-    #     plt.close()
-
-    def plot_state_evolution(self, model, iterations):
-
-        figures_dir = self.config.figures_dir / f"model_{model}" / "states"
+        figures_dir = self.config.figures_dir / f"model_{self.model_name}" / "states"
         figures_dir.mkdir(parents=True)
 
-        for iteration in range(iterations):
+        for iteration in range(self.iterations):
 
             # dataset_shape : (seeds, rool_outs, time, control_dim)
-            states_dataset = self.samples_stack(model, iteration, "states")
+            states_dataset = self.samples_stack(iteration, "states")
             num_states = states_dataset.shape[-1]
             num_timepoints = states_dataset.shape[-2]
 
@@ -181,7 +144,7 @@ class Plotter:
                     alpha=0.4,
                 )
             plt.title(
-                f"batch size:{self.config.episode_batch} lr:{self.config.learning_rate} iteration:{iteration}"
+                f"batch size:{self.config.episode_batch} lr:{self.learning_rate} iteration:{iteration}"
             )
             plt.xlabel("time")
             plt.ylabel("state")
@@ -193,16 +156,16 @@ class Plotter:
             # plt.show()
             plt.close()
 
-    def plot_reward_evolution(self, model, iterations):
+    def plot_reward_evolution(self):
 
-        figures_dir = self.config.figures_dir / f"model_{model}" / "rewards"
+        figures_dir = self.config.figures_dir / f"model_{self.model_name}" / "rewards"
         figures_dir.mkdir(parents=True)
 
         # dataset_shape : (seeds, rool_outs)
-        rewards = np.empty(iterations)
-        deviations = np.empty(iterations)
-        for iteration in range(iterations):
-            rewards_dataset = self.samples_stack(model, iteration, "rewards")
+        rewards = np.empty(self.iterations)
+        deviations = np.empty(self.iterations)
+        for iteration in range(self.iterations):
+            rewards_dataset = self.samples_stack(iteration, "rewards")
             rewards[iteration] = np.mean(rewards_dataset)
             deviations[iteration] = np.std(rewards_dataset)
 
@@ -213,7 +176,7 @@ class Plotter:
         maxi = max(upper_bound)
         width = maxi - mini
 
-        for iteration in range(2, iterations):
+        for iteration in range(2, self.iterations):
             plt.plot(rewards[: iteration + 1])
             plt.fill_between(
                 range(iteration + 1),
@@ -222,19 +185,19 @@ class Plotter:
                 alpha=0.4,
             )
             plt.title(
-                f"batch size:{self.config.episode_batch} lr:{self.config.learning_rate} iteration:{iteration}"
+                f"batch size:{self.config.episode_batch} lr:{self.learning_rate} iteration:{iteration}"
             )
             plt.xlabel("iteration")
             plt.ylabel("reward")
-            plt.xlim(-1, iterations + 1)
+            plt.xlim(-1, self.iterations + 1)
             plt.ylim(mini - 0.1 * width, maxi + 0.1 * width)
 
             plt.savefig(figures_dir / f"iter_{iteration}")
             # plt.show()
             plt.close()
 
-    def plot_everything(self, model, iterations):
-        self.plot_sampled_biactions(model, iterations)
-        self.plot_reward_evolution(model, iterations)
-        self.plot_state_evolution(model, iterations)
+    def plot_everything(self):
+        self.plot_sampled_biactions()
+        self.plot_reward_evolution()
+        self.plot_state_evolution()
 

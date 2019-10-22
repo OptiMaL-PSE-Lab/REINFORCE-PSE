@@ -68,9 +68,8 @@ def full_process(coef_ord_tuple_pair):
         training_pipeline(config, desired_controls, desired_deviation)
 
     # plot results
-    plotter = Plotter(config)
-    plotter.plot_everything("SimpleModel", config.iterations)
-    plotter.plot_everything("ComplexModel", config.post_iterations)
+    Plotter("SimpleModel", config).plot_everything()
+    Plotter("ComplexModel", config).plot_everything()
 
     return coef_ord_tuple_pair
 

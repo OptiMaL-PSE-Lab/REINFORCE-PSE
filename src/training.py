@@ -187,10 +187,14 @@ class Trainer:
                 if model_ascii not in models:
                     h5file.attrs["models"] = np.append(models, model_ascii)
 
-                base_path = f"model_{self.model_name}/iter_{iteration}/"
-                states_group = h5file.require_group(base_path + "states")
-                controls_group = h5file.require_group(base_path + "controls")
-                rewards_group = h5file.require_group(base_path + "rewards")
+                model_group = h5file.require_group(f"model_{self.model_name}")
+                model_group.attrs["iterations"] = iterations
+                model_group.attrs["learning_rate"] = learning_rate
+
+                iter_group = model_group.require_group(f"iter_{iteration}")
+                states_group = iter_group.require_group("states")
+                controls_group = iter_group.require_group("controls")
+                rewards_group = iter_group.require_group("rewards")
 
                 # gzip with given level of compression (0-9)
                 seed_flag = f"seed_{self.seed}"
