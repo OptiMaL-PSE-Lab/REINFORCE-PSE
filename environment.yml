@@ -10,7 +10,7 @@ dependencies:
   - botorch=0.1.*
   - gpytorch=0.3.*
   - scipy=1.*
-  - hdf5=1.*
+  - h5py=2.*
   - ruamel.yaml=0.16.*
   - matplotlib=3.*
   - seaborn=0.9
