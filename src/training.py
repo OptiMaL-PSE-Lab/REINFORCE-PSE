@@ -134,7 +134,7 @@ class Trainer:
                     )
         except OSError:  # non-existent file
             # store current configuration
-            with h5py.File(self.config.data_file) as h5file:  # mode="a"
+            with h5py.File(self.config.data_file, mode="x") as h5file:
                 for key, val in self.config.__dict__.items():
                     if isinstance(val, PurePath):
                         val = str(val)
@@ -175,7 +175,7 @@ class Trainer:
                 surrogate_mean.backward(retain_graph=True)
                 optimizer.step()
 
-            with h5py.File(self.config.data_file) as h5file:  # mode="a"
+            with h5py.File(self.config.data_file, mode="a") as h5file:
 
                 # NOTE: h5py does not support unicode directly
                 model_ascii = np.string_(self.model_name)
