@@ -22,7 +22,6 @@ def set_configuration():
         description="All parameters related to policy and optimization."
     )
 
-    parser.add_argument("-pr", "--processes", type=int, default=1)
     parser.add_argument("-ds", "--distinct-seeds", type=int, default=5)
     parser.add_argument("-div", "--divisions", type=int, default=20)
     parser.add_argument("-nl", "--number-layers", type=int, default=2)

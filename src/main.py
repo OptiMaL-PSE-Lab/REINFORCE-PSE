@@ -1,10 +1,9 @@
 "Main execution of whole algorithm."
 
 from copy import deepcopy
-import multiprocessing as mp
 
 from config import set_configuration
-from utils import grouper, shift_grad_tracking
+from utils import shift_grad_tracking
 from initial_controls import (
     random_coeff_order_combinations,
     chebys_tracer,
@@ -47,12 +46,14 @@ def training_pipeline(config, desired_controls, desired_deviation):
     trainer.train(post_training=True)
 
 
-def full_process(coef_ord_tuple_pair):
-    "Several runs with different seeds but same initial conditions."
+def main():
+    "Several runs with different seeds but same random initial conditions (Chebyshev polinomial)."
+
+    coef_ord_combo = random_coeff_order_combinations(2)
 
     # pretrain policy means based on some random chebyshev polinomial with fixed standar deviation
     identifiers, desired_controls = chebys_tracer(
-        coef_ord_tuple_pair, CONFIG.time_points, zipped=True
+        coef_ord_combo, CONFIG.time_points, zipped=True
     )
     desired_deviation = 2.0
 
@@ -70,33 +71,6 @@ def full_process(coef_ord_tuple_pair):
     # plot results
     Plotter("SimpleModel", config).plot_everything()
     Plotter("ComplexModel", config).plot_everything()
-
-    return coef_ord_tuple_pair
-
-
-def main():
-
-    print(f"Using {CONFIG.processes} processes from {mp.cpu_count()} available.")
-
-    # NOTE: maybe generalize this to n-component systems (for now 2 components)
-    coef_ord_combos = random_coeff_order_combinations(2 * CONFIG.processes)
-
-    if CONFIG.processes > 1:
-
-        # required to use vscode debugger with "subProcess": true in launch.json configuration
-        # https://github.com/microsoft/ptvsd/issues/57#issuecomment-444198292
-        # not the nicest method though...
-        # https://github.com/microsoft/ptvsd/issues/943#issuecomment-481148979
-        # mp.set_start_method("spawn")
-
-        with mp.Pool(
-            processes=CONFIG.processes
-        ) as pool:  # uses all available processes by default
-
-            for res in pool.imap_unordered(full_process, grouper(coef_ord_combos, 2)):
-                print(res)
-    else:
-        full_process(coef_ord_combos)
 
 
 if __name__ == "__main__":
