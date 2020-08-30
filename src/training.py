@@ -155,15 +155,19 @@ class Trainer:
             ep_sampler = EpisodeSampler(self.model, self.policy, self.config)
 
             if self.config.policy_gradient_method == "reinforce":
-                surrogate_mean, reward_mean, reward_std = (
-                    ep_sampler.sample_episodes_reinforce()
-                )
+                (
+                    surrogate_mean,
+                    reward_mean,
+                    reward_std,
+                ) = ep_sampler.sample_episodes_reinforce()
             elif self.config.policy_gradient_method == "ppo":
                 if iteration == 0:
                     policy_old = None
-                surrogate_mean, reward_mean, reward_std = ep_sampler.sample_episodes_ppo(
-                    policy_old=policy_old
-                )
+                (
+                    surrogate_mean,
+                    reward_mean,
+                    reward_std,
+                ) = ep_sampler.sample_episodes_ppo(policy_old=policy_old)
 
             # maximize expected surrogate function
             if self.config.policy_gradient_method == "ppo":

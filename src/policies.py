@@ -84,16 +84,23 @@ class FlexRNN(nn.Module):
 
         return (means, sigmas), hidden_state
 
+
 def policy_selector(model, config):
     "Creates desired policy"
 
     if config.policy_type == "rnn":
         return FlexRNN(
-            model.states_dims, model.controls_dims, config.layers_size, config.number_layers
+            model.states_dims,
+            model.controls_dims,
+            config.layers_size,
+            config.number_layers,
         )
     elif config.policy_type == "nn":
         return FlexNN(
-            model.states_dims, model.controls_dims, config.layers_size, config.number_layers
+            model.states_dims,
+            model.controls_dims,
+            config.layers_size,
+            config.number_layers,
         )
     else:
         raise NotImplementedError(f"Policy {config.policy_type} was not found.")

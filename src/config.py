@@ -51,7 +51,7 @@ def set_configuration():
     results_dir.mkdir()
 
     # Store raw configuration in results destination
-    yaml = YAML(typ='safe')
+    yaml = YAML(typ="safe")
     yaml.default_flow_style = False
     yaml.dump(config.__dict__, results_dir / "config.yaml")
 

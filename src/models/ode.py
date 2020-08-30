@@ -4,6 +4,7 @@ import scipy.integrate as scp
 
 from . import AbstractModel
 
+
 class ODEModel(AbstractModel):
     """Basic class that contains what is expected to be implemented from any ODE model."""
 
@@ -11,7 +12,6 @@ class ODEModel(AbstractModel):
         self.ode = scp.ode(self.system)
         self.ode.set_integrator(integrator)
         super().__init__(states_dims, controls_dims, parameters)
-
 
     @staticmethod  # static required to pass it as argument to scipy ode integrator
     def system(t, state, f_args):
@@ -26,7 +26,9 @@ class ODEModel(AbstractModel):
             "The function defining the dynamical system modeled must be specified!"
         )
 
-    def step(self, state, controls, integration_time, initial_time=0.0, runtime_check=True):
+    def step(
+        self, state, controls, integration_time, initial_time=0.0, runtime_check=True
+    ):
         """General scipy integration routine."""
         if runtime_check:
             self._check_dims(state, controls)

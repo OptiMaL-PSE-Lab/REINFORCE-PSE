@@ -14,7 +14,7 @@ class EpisodeSampler:
         self.model = model
         self.policy = policy
         self.config = config
-        
+
         self.recorder = {}
         self.recorder["states"] = np.zeros(
             shape=(config.episode_batch, config.divisions, model.states_dims)

@@ -81,8 +81,9 @@ def chebys_tracer(coef_ord_combos, time_points, zipped: bool = False):
 
 if __name__ == "__main__":
 
+    import matplotlib.pyplot as plt
+
     def test():
-        import matplotlib.pyplot as plt
 
         time_points = arange(0, 1, 0.01)
         coef_ord_combos = random_coeff_order_combinations(8)
@@ -93,7 +94,7 @@ if __name__ == "__main__":
         plt.title("Random initial Chebyshev polinomials controls")
         plt.xlabel("time")
         plt.ylabel("control")
-        plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+        plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
         # plt.savefig("ini_chebys.png", bbox_inches="tight", dpi=400)
         plt.show()
 

@@ -200,4 +200,3 @@ class Plotter:
         self.plot_sampled_biactions()
         self.plot_reward_evolution()
         self.plot_state_evolution()
-
