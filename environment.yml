@@ -2,13 +2,13 @@ name: batch_reactor
 channels:
   - conda-forge
   - pytorch
-  - gpytorch
+  # - gpytorch
 dependencies:
   - cpuonly=1.*
   - pytorch=1.*
   - torchvision=0.4.*
-  - botorch=0.1.*
-  - gpytorch=0.3.*
+  # - botorch=0.1.*
+  # - gpytorch=0.3.*
   - scipy=1.*
   - h5py=2.*
   - ruamel.yaml=0.16.*
