@@ -2,17 +2,16 @@
 
 We use reinforcement learning techniques to optimize continuum controls over chemical systems
 modelled via ODE systems. The controls are free parameters of the ODE system and the reward
-is a variable of the system, which represents a byproduct of the chemical reaction over time.
+is a variable of the system after some time of evolution of the system, which represents a byproduct of the chemical reaction.
 
 ## ODE systems models
 
 ODE systems represent an approximation of real-word chemical systems.
-Closer approximations to reality involve more complex surrogate models.
 Here we study an approach to optimize the controls of a system over a simple ODE model to later ease the study of optimal controls over a more complex yet closely related ODE model.
 
-The objective is to find the optimal controls $`U_1(t)`$ and $`U_2(t)`$ contrained to the interval $`[0,5]`$ that maximize the final value of the byproduct $`y_2`$ over the time span $`t \in (0, 1)`$.
+The objective is to find the optimal controls $`U_1(t)`$ and $`U_2(t)`$ contrained to the interval $`[0,5]`$ that maximize the final value of the byproduct $`y_2`$ at the end of the time span $`t \in (0, 1)`$.
 
-The initial conditions are fixed: $`y_1 = 1`$, $`y_2 = 0`$
+The initial state is fixed: $`y_1 = 1`$, $`y_2 = 0`$
 
 ### Simple system
 
@@ -32,28 +31,34 @@ $` \dot{y_2} = (\beta  U_1 - \gamma  U_2)  y_1 `$
 
 ## Policy gradients
 
-We use the classic REINFORCE policy gradient algorithm and the recent Proximal Policy Optimization (PPO) variation to optimize the controls via stochastic sampling of trayectories.
-We use stochastic continuum distributions to deal with continuum controls.
-In particular, we use the Beta distribution to enforce interval constraints over the controls.
+We use the classic REINFORCE policy gradient algorithm with a baseline, and the recent Proximal Policy Optimization (PPO) variation, to optimize the controls via stochastic sampling of trayectories.
+We use the Beta distribution to sample continuum controls to enforce interval constraints over the controls.
 
 ## Implementation details
 
 * The evolution of the model between subsequent states corresponds to the integration of the ODE system over a fixed fraction of time.
-* Each state is composed of the current model variables.
+* Each state is composed of the current ODE variables.
 * Policies take states and return the mean and variance of a probability distribution over the possible continuous actions available at each time.
   * An affine Beta distribution over the acceptable interval $`U \in [0,5]`$.
 * Not too deep Neural Networks serve as policies.
-  * Simple Neural Networks include in the states the time left.
+  * Simple Neural Networks include in the states the time left until $t=1$.
   * Recurrent Neural Netwoks take previous hidden states instead.
-* Several sampled episodes are needed to estimate the loss function to be optimized.
+* Several sampled episodes are used to estimate the policy gradient.
   * REINFORCE algorithm with mean reward baseline.
   * PPO with deviation from mean reward as advantage function.
+* Starting policy is pretrained to follow a random Chebyshev polynomial on the mean with fixed variance.
 
-Transfer learning techniques help to leverage the inner weights if the policy learned in the simpler model to ease the training needed for the related but more complex model.
+A simple transfer learning technique is explored to leverage the inner weights of the policy learned in the simpler model to ease the training needed for the related but more complex model.
 
 ## Code execution
 
-Run `python main.py` to execute the whole logic (use `--help` for a list of available parameters):
+A conda environment file is provided for easy reproduction of results:
+```
+conda env create -f environment.yml
+conda activate batch-reactor
+```
+
+Run `python src/main.py` to execute the whole logic (use `--help` for a list of available parameters):
 
 * Pretrain policy to yield predefined function forms that satisfy the constraints.
 * Train policy for large iterations over simpler model.
