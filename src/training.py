@@ -1,5 +1,4 @@
 import copy
-import sys
 from pathlib import PurePath
 
 import h5py
@@ -18,7 +17,7 @@ class Trainer:
 
     def __init__(self, model, config):
 
-        self.seed = np.random.randint(sys.maxsize)  # maxsize = 2**63 - 1
+        self.seed = np.random.randint(2**31 - 1)
         print(f"Using torch random seed {self.seed}!")
         torch.manual_seed(self.seed)
 

@@ -45,7 +45,7 @@ def set_configuration():
 
     config = parser.parse_args()
 
-    config.datetime = dt.datetime.now().isoformat()
+    config.datetime = dt.datetime.now().isoformat().replace(":",".")
 
     results_dir = BASE_RESULTS_DIR / config.datetime
     results_dir.mkdir()
