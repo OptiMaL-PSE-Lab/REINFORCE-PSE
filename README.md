@@ -75,14 +75,14 @@ Main parameters (more available in command line interface from `main.py`) are:
 
 ### Evolution of action distributions of sampled episodes
 
-<img src="https://i.imgur.com/HMf0out.mp4" alt="Simple model" align="middle">
+![Simple Model](https://user-images.githubusercontent.com/12092488/112068670-01cf8380-8b30-11eb-9019-85a3403b763f.mp4)
 
-<img src="https://i.imgur.com/J7NE5o1.mp4" alt="Complex model (via transfer learning)" align="middle">
+![Complex Model](https://user-images.githubusercontent.com/12092488/112068642-eebcb380-8b2f-11eb-8c81-dc43ac463ec8.mp4)
 
 ### Reward evolution
 
-<img src="https://i.imgur.com/AME2Gyz.mp4" alt="Simple model" align="middle">
+![Simple Model](https://user-images.githubusercontent.com/12092488/112068808-48bd7900-8b30-11eb-908b-5b20c863d151.mp4)
 
-<img src="https://i.imgur.com/t9RiibJ.mp4" alt="Complex model (via transfer learning)" align="middle">
+![Complex Model](https://user-images.githubusercontent.com/12092488/112068825-5246e100-8b30-11eb-8eed-e2d1283ba716.mp4)
 
 **Kudos**: gifs made with the blazing-fast [gifski](https://github.com/ImageOptim/gifski) and transformed via [ImageOptim API](https://imageoptim.com/api/ungif)!
