@@ -75,14 +75,14 @@ Main parameters (more available in command line interface from `main.py`) are:
 
 ### Evolution of action distributions of sampled episodes
 
-![Simple Model](https://user-images.githubusercontent.com/12092488/112068670-01cf8380-8b30-11eb-9019-85a3403b763f.mp4)
+![Simple Model](https://user-images.githubusercontent.com/12092488/112073403-a5716180-8b39-11eb-8b1c-55932adb686f.gif)
 
-![Complex Model](https://user-images.githubusercontent.com/12092488/112068642-eebcb380-8b2f-11eb-8c81-dc43ac463ec8.mp4)
+![Complex Model](https://user-images.githubusercontent.com/12092488/112073235-4ad80580-8b39-11eb-9698-bf1bff7b8090.gif)
 
 ### Reward evolution
 
-![Simple Model](https://user-images.githubusercontent.com/12092488/112068808-48bd7900-8b30-11eb-908b-5b20c863d151.mp4)
+![Simple Model](https://user-images.githubusercontent.com/12092488/112073315-778c1d00-8b39-11eb-9ff5-0cf9717f782e.gif)
 
-![Complex Model](https://user-images.githubusercontent.com/12092488/112068825-5246e100-8b30-11eb-8eed-e2d1283ba716.mp4)
+![Complex Model](https://user-images.githubusercontent.com/12092488/112073364-912d6480-8b39-11eb-850b-ebc642679180.gif)
 
 **Kudos**: gifs made with the blazing-fast [gifski](https://github.com/ImageOptim/gifski) and transformed via [ImageOptim API](https://imageoptim.com/api/ungif)!
