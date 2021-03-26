@@ -1,4 +1,4 @@
-# Reinforcement Learning for batch processes optimization
+# Reinforcement Learning for Process Optimization
 
 We use reinforcement learning techniques to optimize continuum controls over chemical systems
 modelled via ODE systems. The controls are free parameters of the ODE system and the reward
