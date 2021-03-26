@@ -9,25 +9,27 @@ is a variable of the system after some time of evolution of the system, which re
 ODE systems represent an approximation of real-word chemical systems.
 Here we study an approach to optimize the controls of a system over a simple ODE model to later ease the study of optimal controls over a more complex yet closely related ODE model.
 
-The objective is to find the optimal controls $`U_1(t)`$ and $`U_2(t)`$ contrained to the interval $`[0,5]`$ that maximize the final value of the byproduct $`y_2`$ at the end of the time span $`t \in (0, 1)`$.
+The objective is to find the optimal controls _U₁_(t) and _U₂_(t) contrained to the interval [0, 5] that maximize the final value of the byproduct _y₂_ at the end of the time span _t_ ∈ (0, 1).
 
-The initial state is fixed: $`y_1 = 1`$, $`y_2 = 0`$
+The initial state is fixed: _y₁_ = 1, _y₂_ = 0.
 
 ### Simple system
 
-$` \dot{y_1} = -(U_1 + \alpha  U_1 ^ 2)  y_1 + \omega  U_2 `$
+[//]: # "funny syntax for comments in markdown"
 
-$` \dot{y_2} = (\beta  U_1 - \gamma  U_2)  y_1 `$
+![\dot{y_1} = -(U_1 + \alpha  U_1 ^ 2)  y_1 + \omega  U_2](https://latex.codecogs.com/svg.latex?%5Cdot%7By_1%7D%20%3D%20-%28U_1%20&plus;%20%5Calpha%20U_1%20%5E%202%29%20y_1%20&plus;%20%5Comega%20U_2)
 
-**Parameters**: $` \alpha, \beta, \gamma, \omega = 0.5, 1.0, 0.7, 0.5 `$
+![\dot{y_2} = (\beta  U_1 - \gamma  U_2)  y_1](https://latex.codecogs.com/svg.latex?%5Cdot%7By_2%7D%20%3D%20%28%5Cbeta%20U_1%20-%20%5Cgamma%20U_2%29%20y_1)
+
+**Parameters**: α, β, γ, ω = 0.5, 1.0, 0.7, 0.5
 
 ### Complex system
+                                                                                        
+![\dot{y_1} = -(U_1 + \alpha  U_2 ^ 2)  y_1 + \omega  U_2  y_2 / (y_1 + y_2)](https://latex.codecogs.com/svg.latex?%5Cdot%7By_1%7D%20%3D%20-%28U_1%20&plus;%20%5Calpha%20U_2%20%5E%202%29%20y_1%20&plus;%20%5Comega%20U_2%20y_2%20/%20%28y_1%20&plus;%20y_2%29)
 
-$` \dot{y_1} = -(U_1 + \alpha  U_2 ^ 2)  y_1 + \omega  U_2  y_2 / (y_1 + y_2) `$
+![\dot{y_2} = (\beta  U_1 - \gamma  U_2)  y_1](https://latex.codecogs.com/svg.latex?%5Cdot%7By_2%7D%20%3D%20%28%5Cbeta%20U_1%20-%20%5Cgamma%20U_2%29%20y_1)
 
-$` \dot{y_2} = (\beta  U_1 - \gamma  U_2)  y_1 `$
-
-**Parameters**: $` \alpha, \beta, \gamma, \omega = 0.5, 1.0, 1.0, 1.0 `$
+**Parameters**: α, β, γ, ω = 0.5, 1.0, 1.0, 1.0
 
 ## Policy gradients
 
@@ -39,9 +41,9 @@ We use the Beta distribution to sample continuum controls to enforce interval co
 * The evolution of the model between subsequent states corresponds to the integration of the ODE system over a fixed fraction of time.
 * Each state is composed of the current ODE variables.
 * Policies take states and return the mean and variance of a probability distribution over the possible continuous actions available at each time.
-  * An affine Beta distribution over the acceptable interval $`U \in [0,5]`$.
+  * An affine Beta distribution over the acceptable interval U ∈ [0,5].
 * Not too deep Neural Networks serve as policies.
-  * Simple Neural Networks include in the states the time left until $t=1$.
+  * Simple Neural Networks include in the states the time left until t=1.
   * Recurrent Neural Netwoks take previous hidden states instead.
 * Several sampled episodes are used to estimate the policy gradient.
   * REINFORCE algorithm with mean reward baseline.
